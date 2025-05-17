@@ -8,13 +8,21 @@ export class NovaCalendar {
 		this.blockedDates = [];
 	}
 
+	static parseYMD(str) {
+		// str doit être au format YYYY-MM-DD
+		const [y, m, d] = str.split('-').map(Number);
+		return new Date(y, m - 1, d); // monthIndex: 0 pour janvier !
+	}
+
 	setRange(start, end) {
-		const startDate = new Date(start);
-		const endDate = end ? new Date(end) : null;
+		const startDate = NovaCalendar.parseYMD(start);
+		const endDate = end ? NovaCalendar.parseYMD(end) : null;
 		this.startDate = startDate;
 		this.endDate = endDate;
 		this.hoverDate = null;
+		console.log('setRange this:', this);
 		this.updateInput();
+		console.log('Avant renderCalendar', this.startDate, this.endDate);
 		this.renderCalendar();
 		this.updateDayClasses();
 	}
@@ -54,7 +62,7 @@ export class NovaCalendar {
 	}
 
 	renderCalendar() {
-		console.log('renderCalendar', this.date);
+		console.log('renderCalendar', this.date, this.startDate, this.endDate);
 		const month = this.date.toLocaleString('default', { month: 'long' });
 		const year = this.date.getFullYear();
 
@@ -71,10 +79,12 @@ export class NovaCalendar {
 			header.querySelector('.prev-month').onclick = () => {
 				this.date.setMonth(this.date.getMonth() - 1);
 				this.renderCalendar();
+				this.updateDayClasses();
 			};
 			header.querySelector('.next-month').onclick = () => {
 				this.date.setMonth(this.date.getMonth() + 1);
 				this.renderCalendar();
+				this.updateDayClasses();
 			};
 		} else {
 			this.container.querySelector(
@@ -157,6 +167,13 @@ export class NovaCalendar {
 	}
 
 	updateDayClasses() {
+		console.log(
+			'updateDayClasses',
+			this.startDate,
+			this.endDate,
+			this.dayElements.length
+		);
+
 		if (!this.dayElements) return;
 		let fromDate = this.startDate;
 		let toDate =
@@ -172,65 +189,55 @@ export class NovaCalendar {
 				el.classList.add('before-today');
 			}
 
-			// Gestion du range
+			// Ajout des classes range-start et range-end
 			if (fromDate && toDate) {
-				const fromTime = fromDate.getTime();
-				const toTime = toDate.getTime();
-				const dateTime = date.getTime();
-				if (toTime >= fromTime) {
-					if (dateTime >= fromTime && dateTime <= toTime) {
-						el.classList.add('in-range');
-					}
-				} else {
-					if (dateTime >= toTime && dateTime <= fromTime) {
-						el.classList.add('in-range');
-					}
-				}
-			}
+				// Force à minuit partout
+				const fromTime = new Date(
+					fromDate.getFullYear(),
+					fromDate.getMonth(),
+					fromDate.getDate()
+				).getTime();
+				const toTime = new Date(
+					toDate.getFullYear(),
+					toDate.getMonth(),
+					toDate.getDate()
+				).getTime();
+				const dateTime = new Date(
+					date.getFullYear(),
+					date.getMonth(),
+					date.getDate()
+				).getTime();
 
-			// Sélection classique (start avant end)
-			if (
-				this.startDate &&
-				this.endDate &&
-				this.endDate.getTime() >= this.startDate.getTime()
-			) {
-				if (date.getTime() === this.startDate.getTime()) {
+				const minTime = Math.min(fromTime, toTime);
+				const maxTime = Math.max(fromTime, toTime);
+
+				if (dateTime === minTime) {
+					console.log('range-start', date, minTime, dateTime);
 					el.classList.add('selected', 'range-start');
-				}
-				if (date.getTime() === this.endDate.getTime()) {
+				} else if (dateTime === maxTime) {
+					console.log('range-end', date, maxTime, dateTime);
 					el.classList.add('selected', 'range-end');
-				}
-			}
-			// Sélection inversée (end avant start)
-			if (
-				this.startDate &&
-				this.endDate &&
-				this.endDate.getTime() < this.startDate.getTime()
-			) {
-				if (date.getTime() === this.startDate.getTime()) {
-					el.classList.add('selected', 'range-end');
-				}
-				if (date.getTime() === this.endDate.getTime()) {
-					el.classList.add('selected', 'range-start');
+				} else if (dateTime > minTime && dateTime < maxTime) {
+					el.classList.add('in-range');
 				}
 			}
 
 			// Hover classique (hover après start)
 			if (
-				!this.endDate &&
+				!toDate &&
 				this.hoverDate &&
-				this.startDate &&
-				this.hoverDate.getTime() > this.startDate.getTime() &&
+				fromDate &&
+				this.hoverDate.getTime() > fromDate.getTime() &&
 				date.getTime() === this.hoverDate.getTime()
 			) {
 				el.classList.add('range-end');
 			}
 			// Hover inversé (hover avant start)
 			if (
-				!this.endDate &&
+				!toDate &&
 				this.hoverDate &&
-				this.startDate &&
-				this.hoverDate.getTime() < this.startDate.getTime() &&
+				fromDate &&
+				this.hoverDate.getTime() < fromDate.getTime() &&
 				!isBeforeToday &&
 				date.getTime() === this.hoverDate.getTime()
 			) {
@@ -238,16 +245,9 @@ export class NovaCalendar {
 			}
 
 			// Affichage de la première date sélectionnée si aucune endDate
-			if (
-				this.startDate &&
-				!this.endDate &&
-				date.getTime() === this.startDate.getTime()
-			) {
+			if (fromDate && !toDate && date.getTime() === fromDate.getTime()) {
 				// Si hoverDate existe et est avant startDate, la startDate devient range-end
-				if (
-					this.hoverDate &&
-					this.hoverDate.getTime() < this.startDate.getTime()
-				) {
+				if (this.hoverDate && this.hoverDate.getTime() < fromDate.getTime()) {
 					el.classList.add('selected', 'range-end');
 				} else {
 					el.classList.add('selected', 'range-start');
