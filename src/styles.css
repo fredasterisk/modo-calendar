@@ -1,0 +1,64 @@
+.nova-calendar {
+  border: 1px solid #ccc;
+  padding: 1rem;
+  display: inline-block;
+  font-family: sans-serif;
+}
+
+.nova-calendar div {
+  display: grid;
+  grid-template-columns: repeat(7, 2rem);
+  gap: 0.25rem;
+  margin-top: 0.5rem;
+}
+
+.day-header {
+  font-weight: bold;
+  text-align: center;
+}
+
+.day, .empty {
+  text-align: center;
+  padding: 0.5rem 0;
+  border: 1px solid #eee;
+  cursor: pointer;
+}
+
+button {
+  margin: 0 0.5rem;
+  cursor: pointer;
+}
+
+/* Add effect on days */
+
+.day.before-today {
+    pointer-events: none;
+}
+
+.day.selected {
+  background: #007bff;
+  color: #fff;
+}
+
+.day.in-range {
+  background: #cce5ff;
+  color: #222;
+}
+
+.day.range-start {
+  border-radius: 50% 0 0 50%;
+  background: #007bff;
+  color: #fff;
+}
+
+.day.range-end {
+  border-radius: 0 50% 50% 0;
+  background: #007bff;
+  color: #fff;
+}
+
+.day.blocked {
+	opacity: 0.5;
+	background: repeating-linear-gradient(135deg, transparent, #ff9800 2px, transparent 0, transparent 4px);
+	cursor: not-allowed;
+}
