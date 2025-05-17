@@ -70,9 +70,9 @@ export class NovaCalendar {
 			const header = document.createElement('div');
 			header.classList.add('header');
 			header.innerHTML = `
-            <button class="prev-month">&lt;</button>
+            <button class="prev-month">&#8249;</button>
             <span>${month} ${year}</span>
-            <button class="next-month">&gt;</button>
+            <button class="next-month">&#8250;</button>
         `;
 			this.container.appendChild(header);
 
@@ -131,15 +131,16 @@ export class NovaCalendar {
 		for (let d = 1; d <= daysInMonth; d++) {
 			const currentDate = new Date(date.getFullYear(), date.getMonth(), d);
 			const day = document.createElement('div');
+			const dayText = document.createElement('div');
+			dayText.className = 'day-text';
+			dayText.textContent = d;
+			day.appendChild(dayText);
 			day.textContent = d;
 			day.className = 'day';
-			day.style.cursor = 'pointer';
 			const dateTime = currentDate.getTime();
 			// Bloquer les dates définies dans blockedDates
 			if (this.blockedDates && this.blockedDates.includes(dateTime)) {
 				day.classList.add('blocked');
-				day.style.pointerEvents = 'none';
-				day.style.opacity = 0.5;
 			}
 			// Ajout de la classe .before-today si la date est avant aujourd'hui
 			const today = new Date();
@@ -180,7 +181,17 @@ export class NovaCalendar {
 			this.endDate ||
 			(this.startDate && this.hoverDate ? this.hoverDate : null);
 		this.dayElements.forEach(({ el, date }) => {
+			// Always start with 'day' class
 			el.className = 'day';
+
+			// Re-apply .blocked if date is blocked
+			const dateTime = new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
+			if (this.blockedDates && this.blockedDates.includes(dateTime)) {
+				el.classList.add('blocked');
+				el.style.pointerEvents = 'none';
+				el.style.opacity = 0.5;
+			}
+
 			// Ajout de la classe .before-today si la date est avant aujourd'hui
 			const today = new Date();
 			today.setHours(0, 0, 0, 0);

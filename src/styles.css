@@ -1,43 +1,74 @@
 .nova-calendar {
-  border: 1px solid #ccc;
-  padding: 1rem;
+  border: 1px solid #eaeaea;
+  font-size: 18px;
+  border-radius: .5em;
+  padding: 1em;
+  margin-top:.5em;
+  width: max-content;
   display: inline-block;
-  font-family: sans-serif;
+  font-family: Poppins;
 }
 
-.nova-calendar div {
+.nova-calendar div.days {
   display: grid;
-  grid-template-columns: repeat(7, 2rem);
-  gap: 0.25rem;
-  margin-top: 0.5rem;
+  grid-template-columns: repeat(7, 2em);
+  margin-top: 0.5em;
+  row-gap: .125em;
 }
 
 .day-header {
-  font-weight: bold;
+  font-weight: 600;
   text-align: center;
 }
 
 .day, .empty {
+  font-size: .75em;
+  font-weight: 500;
   text-align: center;
-  padding: 0.5rem 0;
-  border: 1px solid #eee;
+  padding: 0.585em 0;
   cursor: pointer;
 }
 
-button {
-  margin: 0 0.5rem;
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+button:is(.prev-month, .next-month) {
   cursor: pointer;
+  background: transparent;
+  padding: .6375em 1.035em;
+  border-radius: 99em;
+  border: none;
+}
+
+button:is(.prev-month, .next-month):hover {
+  background: #cce5ff;
 }
 
 /* Add effect on days */
 
 .day.before-today {
-    pointer-events: none;
+  opacity: 0.5;
+  pointer-events: none;
 }
 
 .day.selected {
+  position: relative;
   background: #007bff;
   color: #fff;
+}
+
+.day.selected:has(+ .in-range, + .range-end):before,
+.day.selected.range-end:before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  background: #cce5ff;
+  z-index: -1;
+  right: 0;
 }
 
 .day.in-range {
@@ -46,19 +77,30 @@ button {
 }
 
 .day.range-start {
-  border-radius: 50% 0 0 50%;
+  border-radius: 99em;
   background: #007bff;
   color: #fff;
 }
 
+.day.range-start:before {
+  right: 0;
+  width: 50%;
+}
+
 .day.range-end {
-  border-radius: 0 50% 50% 0;
+  border-radius: 99em;
   background: #007bff;
   color: #fff;
+}
+
+.day.range-end:before {
+  left: 0;
+  width: 50%;
 }
 
 .day.blocked {
 	opacity: 0.5;
 	background: repeating-linear-gradient(135deg, transparent, #ff9800 2px, transparent 0, transparent 4px);
 	cursor: not-allowed;
+  pointer-events: none;
 }
