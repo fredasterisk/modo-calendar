@@ -28,11 +28,10 @@ export class NovaCalendar {
 	}
 
 	setBlockedDates(dates) {
-		this.blockedDates = dates.map((d) => {
-			const dateObj = new Date(d);
-			dateObj.setHours(0, 0, 0, 0);
-			return dateObj.getTime();
-		});
+	this.blockedDates = dates.map((d) => {
+		const dateObj = NovaCalendar.parseYMD(d);
+		return dateObj.getTime();
+	});
 		this.renderCalendar();
 		this.updateDayClasses();
 	}
@@ -200,8 +199,25 @@ export class NovaCalendar {
 				el.classList.add('before-today');
 			}
 
+			// --- Empêcher le range de dépasser une date bloquée ---
+			let rangeBlocked = false;
+			if (this.startDate && (this.endDate || this.hoverDate)) {
+				const from = new Date(this.startDate.getFullYear(), this.startDate.getMonth(), this.startDate.getDate());
+				const to = new Date((this.endDate || this.hoverDate).getFullYear(), (this.endDate || this.hoverDate).getMonth(), (this.endDate || this.hoverDate).getDate());
+				const dir = from < to ? 1 : -1;
+				let current = new Date(from);
+				while ((dir > 0 && current <= date) || (dir < 0 && current >= date)) {
+					const t = current.getTime();
+					if (this.blockedDates && this.blockedDates.includes(t)) {
+						rangeBlocked = true;
+						break;
+					}
+					current.setDate(current.getDate() + dir);
+				}
+			}
+
 			// Ajout des classes range-start et range-end
-			if (fromDate && toDate) {
+			if (fromDate && toDate && !rangeBlocked) {
 				// Force à minuit partout
 				const fromTime = new Date(
 					fromDate.getFullYear(),
@@ -223,10 +239,8 @@ export class NovaCalendar {
 				const maxTime = Math.max(fromTime, toTime);
 
 				if (dateTime === minTime) {
-					console.log('range-start', date, minTime, dateTime);
 					el.classList.add('selected', 'range-start');
 				} else if (dateTime === maxTime) {
-					console.log('range-end', date, maxTime, dateTime);
 					el.classList.add('selected', 'range-end');
 				} else if (dateTime > minTime && dateTime < maxTime) {
 					el.classList.add('in-range');
@@ -239,7 +253,8 @@ export class NovaCalendar {
 				this.hoverDate &&
 				fromDate &&
 				this.hoverDate.getTime() > fromDate.getTime() &&
-				date.getTime() === this.hoverDate.getTime()
+				date.getTime() === this.hoverDate.getTime() &&
+				!rangeBlocked
 			) {
 				el.classList.add('range-end');
 			}
@@ -250,7 +265,8 @@ export class NovaCalendar {
 				fromDate &&
 				this.hoverDate.getTime() < fromDate.getTime() &&
 				!isBeforeToday &&
-				date.getTime() === this.hoverDate.getTime()
+				date.getTime() === this.hoverDate.getTime() &&
+				!rangeBlocked
 			) {
 				el.classList.add('range-start');
 			}
@@ -274,6 +290,17 @@ export class NovaCalendar {
 		this.input.value = '';
 	}
 
+	getDateRangeArray(startDate, endDate) {
+		const range = [];
+		const dir = startDate < endDate ? 1 : -1;
+		let current = new Date(startDate);
+		while ((dir > 0 && current <= endDate) || (dir < 0 && current >= endDate)) {
+			range.push(new Date(current));
+			current.setDate(current.getDate() + dir);
+		}
+		return range;
+	}
+
 	selectDate(day) {
 		const selected = new Date(
 			this.date.getFullYear(),
@@ -290,36 +317,54 @@ export class NovaCalendar {
 			this.hoverDate = null;
 			this.updateDayClasses();
 		} else {
-			// Permettre la sélection d'une date de fin avant la startDate, sauf si elle est before-today
-			if (!isBeforeToday) {
-				this.endDate = selected;
-				this.hoverDate = null;
-				this.updateInput();
-				this.updateDayClasses();
-				this.container.style.display = 'none';
-			} else {
-				// Si before-today, on redémarre la sélection
-				this.startDate = selected;
-				this.endDate = null;
-				this.hoverDate = null;
-				this.updateDayClasses();
+    	// Permettre la sélection d'une date de fin avant la startDate, sauf si elle est before-today
+    	if (!isBeforeToday) {
+        	// Empêche de traverser une date bloquée
+        	let fixedEndDate = selected;
+        	const rangeArr = this.getDateRangeArray(this.startDate, selected);
+        	for (let i = 1; i < rangeArr.length; i++) { // commence à 1 pour sauter startDate
+				const day = rangeArr[i];
+				const dayAtMidnight = new Date(day.getFullYear(), day.getMonth(), day.getDate());
+				const dayTime = dayAtMidnight.getTime();
+				console.log('Check blocked', dayAtMidnight, dayTime, this.blockedDates.includes(dayTime));
+
+				if (this.blockedDates && this.blockedDates.includes(dayTime)) {
+		// La date précédente devient la vraie fin (donc i-1 dans le tableau)
+		const previousDay = rangeArr[i - 1];
+		fixedEndDate = new Date(previousDay.getFullYear(), previousDay.getMonth(), previousDay.getDate());
+		break;
+				}
 			}
+			this.endDate = fixedEndDate;
+			this.hoverDate = null;
+			this.updateInput();
+			this.updateDayClasses();
+			this.container.style.display = 'none';
+		} else {
+			// Si before-today, on redémarre la sélection
+			this.startDate = selected;
+			this.endDate = null;
+			this.hoverDate = null;
+			this.updateDayClasses();
 		}
+}
 	}
 
 	updateInput() {
 		if (this.startDate && this.endDate) {
-			this.input.value = `${this.formatDate(
-				this.startDate
-			)} au ${this.formatDate(this.endDate)}`;
+			const start = this.startDate < this.endDate ? this.startDate : this.endDate;
+			const end = this.startDate < this.endDate ? this.endDate : this.startDate;
+			this.input.value = `${this.formatDate(start)} au ${this.formatDate(end)}`;
 		} else if (this.startDate) {
 			this.input.value = this.formatDate(this.startDate);
 		}
 		if (this.startDate && this.endDate) {
+			const start = this.startDate < this.endDate ? this.startDate : this.endDate;
+			const end = this.startDate < this.endDate ? this.endDate : this.startDate;
 			const event = new CustomEvent('rangeSelected', {
 				detail: {
-					start: this.formatDate(this.startDate),
-					end: this.formatDate(this.endDate),
+					start: this.formatDate(start),
+					end: this.formatDate(end),
 				},
 			});
 			this.input.dispatchEvent(event);
