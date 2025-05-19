@@ -7,6 +7,7 @@
   padding: 1em;
   margin-top:.5em;
   width: max-content;
+  max-width: 300px;
   display: inline-block;
 }
 
@@ -26,8 +27,9 @@
   font-size: .75em;
   font-weight: 500;
   text-align: center;
-  padding: 0.585em 0;
+  padding: .825em 0 .75em 0;
   cursor: pointer;
+  line-height: 1;
 }
 
 .header {
@@ -48,15 +50,46 @@ button:is(.prev-month, .next-month):hover {
   background: #cce5ff;
 }
 
-/* Add effect on days */
+/* multi-list */
+.multi-list {
+  display: flex;
+  flex-wrap: wrap;
+  margin-top: 1em;
+  gap: 0.5em;
+  width: 100%;
+  box-sizing: border-box;
+  max-width: 240px;
+}
 
+.nova-btn {
+  font-family: inherit;
+  padding: .25em .5em;
+  border: 1px solid #eaeaea;
+  border-radius: .25em;
+  background: transparent;
+  color: #252e38;
+}
+
+.nova-btn.remove-date:hover {
+  background: rgba(235, 22, 22, 0.05);
+  color: rgb(235, 22, 22);
+  border-color: rgb(235, 22, 22);
+}
+
+/* Add effect on days */
 .day.before-today {
   opacity: 0.5;
   pointer-events: none;
 }
 
+.day:not(.in-range, .selected):hover {
+  border-radius: 99em;
+  background: #f0f0f0;
+}
+
 .day.selected {
   position: relative;
+  border-radius: 99em;
   background: #007bff;
   color: #fff;
 }
@@ -78,7 +111,6 @@ button:is(.prev-month, .next-month):hover {
 }
 
 .day.range-start {
-  border-radius: 99em;
   background: #007bff;
   color: #fff;
 }
@@ -89,7 +121,6 @@ button:is(.prev-month, .next-month):hover {
 }
 
 .day.range-end {
-  border-radius: 99em;
   background: #007bff;
   color: #fff;
 }

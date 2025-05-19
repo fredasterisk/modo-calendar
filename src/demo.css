@@ -1,18 +1,25 @@
-/* Calendar */
+/* Page */
 html {
     font-family: 'Inter', Poppins, sans-serif;
     font-feature-settings: "ss01" 1, "ss02" 1, "ss03" 1, "ss04" 1, "ss05" 1, "ss06" 1, "ss07" 1, "ss08" 1, "ss09" 1, "ss10" 1, "ss11" 1, "ss12" 1, "ss13" 1, "ss14" 1, "ss15" 1, "ss16" 1, "ss17" 1;
     @import url('https://fonts.googleapis.com/css2?family=Inter:opsz,wght@16..1000,400;700&display=swap');
 }
 
-/* Button */
+.container {
+  displaY: flex;
+  gap: 2rem;
+}
 
+/* Calendar */
+
+/* Button */
 .trigger {
     min-width: 200px;
+    max-width: 340px;
     background: transparent;
     color: #252e38;
     border: 1px solid #eaeaea;
-    padding: .5rem 1em .25rem 1em;
+    padding: .5rem .75rem .25rem .75rem;
     border-radius: .5rem;
     font-size: 16px;
     font-family: inherit;
@@ -33,6 +40,17 @@ html {
   line-height: .8;
 }
 
+/* Dates */
+.trigger .dates {
+  display: block;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  max-width: 200px;
+  overflow: hidden;
+  text-align: left;
+}
+
+/* Icon */
 .trigger .icon {
     display: flex;
     align-items: center;

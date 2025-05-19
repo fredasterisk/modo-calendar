@@ -7,35 +7,87 @@
 		<script type="module" src="/src/index.js"></script>
 	</head>
 	<body>
-		<!-- <input type="text" id="datepicker" placeholder="Choisissez une date" /> -->
-		<button id="datepicker-btn" type="button" class="trigger">
-			<span class="icon"
-				><svg
-					xmlns="http://www.w3.org/2000/svg"
-					viewBox="0 0 24 24"
-					fill="currentColor"
-				>
-					<path
-						d="M9 1V3H15V1H17V3H21C21.5523 3 22 3.44772 22 4V20C22 20.5523 21.5523 21 21 21H3C2.44772 21 2 20.5523 2 20V4C2 3.44772 2.44772 3 3 3H7V1H9ZM20 11H4V19H20V11ZM11 13V17H6V13H11ZM7 5H4V9H20V5H17V7H15V5H9V7H7V5Z"
-					></path>
-				</svg>
-			</span>
-			<div>
-				<span class="label">Dates</span>
-				<span id="dates">Choisir...</span>
-			</div>
-		</button>
+		<div class="container">
+			<button id="datepicker-single" type="button" class="trigger">
+				<span class="icon"
+					><svg
+						xmlns="http://www.w3.org/2000/svg"
+						viewBox="0 0 24 24"
+						fill="currentColor"
+					>
+						<path
+							d="M9 1V3H15V1H17V3H21C21.5523 3 22 3.44772 22 4V20C22 20.5523 21.5523 21 21 21H3C2.44772 21 2 20.5523 2 20V4C2 3.44772 2.44772 3 3 3H7V1H9ZM20 11H4V19H20V11ZM11 13V17H6V13H11ZM7 5H4V9H20V5H17V7H15V5H9V7H7V5Z"
+						></path>
+					</svg>
+				</span>
+				<div>
+					<span class="label">Date simple</span>
+					<span class="dates">Choisir...</span>
+				</div>
+			</button>
+			<button id="datepicker-range" type="button" class="trigger">
+				<span class="icon"
+					><svg
+						xmlns="http://www.w3.org/2000/svg"
+						viewBox="0 0 24 24"
+						fill="currentColor"
+					>
+						<path
+							d="M9 1V3H15V1H17V3H21C21.5523 3 22 3.44772 22 4V20C22 20.5523 21.5523 21 21 21H3C2.44772 21 2 20.5523 2 20V4C2 3.44772 2.44772 3 3 3H7V1H9ZM20 11H4V19H20V11ZM11 13V17H6V13H11ZM7 5H4V9H20V5H17V7H15V5H9V7H7V5Z"
+						></path>
+					</svg>
+				</span>
+				<div>
+					<span class="label">Plage de dates</span>
+					<span class="dates">Choisir...</span>
+				</div>
+			</button>
+			<button id="datepicker-multiple" type="button" class="trigger">
+				<span class="icon"
+					><svg
+						xmlns="http://www.w3.org/2000/svg"
+						viewBox="0 0 24 24"
+						fill="currentColor"
+					>
+						<path
+							d="M9 1V3H15V1H17V3H21C21.5523 3 22 3.44772 22 4V20C22 20.5523 21.5523 21 21 21H3C2.44772 21 2 20.5523 2 20V4C2 3.44772 2.44772 3 3 3H7V1H9ZM20 11H4V19H20V11ZM11 13V17H6V13H11ZM7 5H4V9H20V5H17V7H15V5H9V7H7V5Z"
+						></path>
+					</svg>
+				</span>
+				<div>
+					<span class="label">Dates multiples</span>
+					<span class="dates">Choisir...</span>
+				</div>
+			</button>
+		</div>
+
 		<script type="module">
-			const calendar = new NovaCalendar({
-				trigger: '#datepicker-btn',
+			const calendarSingle = new NovaCalendar({
+				trigger: '#datepicker-single',
+				mode: 'single', // Mode de sélection de date simple
+				//format: (date) => date.toLocaleDateString('fr-FR'), // Fonction de format personnalisée
+			});
+			const calendarRange = new NovaCalendar({
+				trigger: '#datepicker-range',
+				mode: 'range', // Mode de sélection de plage de dates
 				format: (start, end) => `${start} - ${end}`, // Fonction de format
 			});
+			const calendarMulti = new NovaCalendar({
+				trigger: '#datepicker-multiple',
+				mode: 'multiple', // Mode de sélection de dates multiples
+			});
 			//calendar.attachTo('#datepicker');
-			calendar.attachToTrigger('#datepicker-btn');
+			calendarSingle.attachToTrigger('#datepicker-single');
+			calendarRange.attachToTrigger('#datepicker-range');
+			calendarMulti.attachToTrigger('#datepicker-multiple');
 			// Exemple de blocage de dates :
-			calendar.setBlockedDates(['2025-07-04', '2025-07-10', '2025-06-10']);
+			calendarSingle.setBlockedDates([
+				'2025-07-04',
+				'2025-07-10',
+				'2025-06-10',
+			]);
 			// Exemple de présélection d'une plage
-			calendar.setRange('2025-05-22', '2025-06-05');
+			calendarRange.setRange('2025-05-22', '2025-06-05');
 		</script>
 	</body>
 </html>

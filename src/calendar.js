@@ -1,10 +1,12 @@
+import calendarStyles from './styles.css?inline';
 export class NovaCalendar {
+	// Ajout d'une propriété statique pour suivre toutes les instances
+	static instances = [];
+
 	constructor(options = {}) {
 		this.options = {
 			trigger: options.trigger || null,
-			icon: options.icon || '',
-			label: options.label || 'Dates',
-			placeholder: options.placeholder || 'Choisir...',
+			mode: 'range', // 'single' 'multiple' ou 'range'
 			format:
 				options.format ||
 				((start, end) =>
@@ -12,10 +14,16 @@ export class NovaCalendar {
 			...options,
 		};
 		this.date = new Date();
+		this.mode = options.mode || 'range';
 		this.startDate = null;
 		this.endDate = null;
 		this.hoverDate = null;
 		this.blockedDates = [];
+		if (this.mode === 'multiple') {
+			this.selectedDates = [];
+		}
+		// Ajoute l'instance à la liste globale
+		NovaCalendar.instances.push(this);
 	}
 
 	static parseYMD(str) {
@@ -46,35 +54,27 @@ export class NovaCalendar {
 		this.updateDayClasses();
 	}
 
-	// attachTo(selector) {
-	// 	const input = document.querySelector(selector);
-	// 	if (!input) return;
-
-	// 	const container = document.createElement('div');
-	// 	container.className = 'nova-calendar';
-	// 	container.style.display = 'none';
-	// 	this.container = container;
-	// 	this.input = input;
-
-	// 	this.renderCalendar(); // Un seul render au départ
-	// 	input.insertAdjacentElement('afterend', container);
-
-	// 	input.addEventListener('focus', () => {
-	// 		container.style.display = 'block';
-	// 	});
-
-	// 	document.addEventListener('click', (e) => {
-	// 		if (!container.contains(e.target) && e.target !== input) {
-	// 			container.style.display = 'none';
-	// 		}
-	// 	});
-	// }
-
 	attachToTrigger(selector) {
 		const btn = document.querySelector(selector);
 		if (!btn) return;
 
 		this.trigger = btn;
+
+		// Crée le conteneur calendrier caché dans le shadow DOM
+		this.shadowHost = document.createElement('div');
+		document.body.appendChild(this.shadowHost);
+		this.shadowRoot = this.shadowHost.attachShadow({ mode: 'open' });
+
+		// Ajoute les styles dans le shadowRoot
+		this.shadowRoot.innerHTML = `
+		<style>${calendarStyles}</style>
+		`;
+
+		// Crée le conteneur calendrier
+		this.container = document.createElement('div');
+		this.container.className = 'nova-calendar';
+		this.container.style.display = 'none';
+		this.shadowRoot.appendChild(this.container);
 
 		// Affiche le calendrier au clic
 		btn.addEventListener('click', (e) => {
@@ -84,31 +84,31 @@ export class NovaCalendar {
 
 		// Masque le calendrier si clic ailleurs
 		document.addEventListener('click', (e) => {
-			if (
-				this.container &&
-				!this.container.contains(e.target) &&
-				e.target !== btn
-			) {
+			const path = e.composedPath ? e.composedPath() : [];
+			const isInsideCalendar =
+				path.includes(this.container) ||
+				path.includes(this.shadowHost) ||
+				e.target === btn;
+			if (!isInsideCalendar) {
 				this.hideCalendar();
 			}
 		});
-
-		// Crée le conteneur calendrier caché
-		this.container = document.createElement('div');
-		this.container.className = 'nova-calendar';
-		this.container.style.display = 'none';
-		document.body.appendChild(this.container);
 
 		this.renderCalendar();
 	}
 
 	showCalendar() {
+		// Ferme tous les autres calendriers ouverts
+		NovaCalendar.instances.forEach((instance) => {
+			if (instance !== this) {
+				instance.hideCalendar();
+			}
+		});
 		this.container.style.display = 'block';
-		// positionne dynamiquement près du bouton
 		const rect = this.trigger.getBoundingClientRect();
-		this.container.style.position = 'absolute';
-		this.container.style.left = rect.left + window.scrollX + 'px';
-		this.container.style.top = rect.bottom + window.scrollY + 'px';
+		this.shadowHost.style.position = 'absolute';
+		this.shadowHost.style.left = rect.left + window.scrollX + 'px';
+		this.shadowHost.style.top = rect.bottom + window.scrollY + 'px';
 	}
 
 	hideCalendar() {
@@ -124,10 +124,10 @@ export class NovaCalendar {
 			const header = document.createElement('div');
 			header.classList.add('header');
 			header.innerHTML = `
-            <button class="prev-month">&#8249;</button>
-            <span>${month} ${year}</span>
-            <button class="next-month">&#8250;</button>
-        `;
+				<button class="prev-month">&#8249;</button>
+				<span>${month} ${year}</span>
+				<button class="next-month">&#8250;</button>
+			`;
 			this.container.appendChild(header);
 
 			header.querySelector('.prev-month').onclick = () => {
@@ -141,9 +141,10 @@ export class NovaCalendar {
 				this.updateDayClasses();
 			};
 		} else {
-			this.container.querySelector(
-				'.header span'
-			).textContent = `${month} ${year}`;
+			const headerSpan = this.container.querySelector('.header span');
+			if (headerSpan) {
+				headerSpan.textContent = `${month} ${year}`;
+			}
 		}
 
 		const existingDays = this.container.querySelector('.days');
@@ -153,6 +154,50 @@ export class NovaCalendar {
 
 		let days = this.generateDays(this.date);
 		this.container.appendChild(days);
+
+		// --- Affichage de la liste des dates sélectionnées en mode multiple ---
+		let multiList = this.container.querySelector('.multi-list');
+		if (multiList) {
+			this.container.removeChild(multiList);
+		}
+		if (this.mode === 'multiple') {
+			multiList = document.createElement('div');
+			multiList.className = 'multi-list';
+			if (this.selectedDates && this.selectedDates.length > 0) {
+				const sorted = [...this.selectedDates].sort((a, b) => a - b);
+				multiList.innerHTML = sorted
+					.map(
+						(d, i) => `
+					<span class="multi-date" data-index="${i}">
+						<button class="nova-btn remove-date" data-index="${i}" title="Désélectionner">${this.formatDisplay(
+							d
+						)}  ×</button>
+					</span>
+				`
+					)
+					.join('');
+			} else {
+				multiList.innerHTML =
+					'<span class="multi-date-empty">Aucune date sélectionnée</span>';
+			}
+			this.container.appendChild(multiList);
+
+			// Ajout des listeners pour désélectionner
+			multiList.querySelectorAll('.remove-date').forEach((btn) => {
+				btn.addEventListener('click', (e) => {
+					e.stopPropagation();
+					const idx = parseInt(btn.getAttribute('data-index'), 10);
+					const sorted = [...this.selectedDates].sort((a, b) => a - b);
+					const dateToRemove = sorted[idx];
+					this.selectedDates = this.selectedDates.filter(
+						(d) => d.getTime() !== dateToRemove.getTime()
+					);
+					this.updateButtonLabel();
+					this.renderCalendar();
+					this.updateDayClasses();
+				});
+			});
+		}
 	}
 
 	generateDays(date) {
@@ -222,13 +267,6 @@ export class NovaCalendar {
 	}
 
 	updateDayClasses() {
-		console.log(
-			'updateDayClasses',
-			this.startDate,
-			this.endDate,
-			this.dayElements.length
-		);
-
 		if (!this.dayElements) return;
 		let fromDate = this.startDate;
 		let toDate =
@@ -238,6 +276,18 @@ export class NovaCalendar {
 			// Always start with 'day' class
 			el.className = 'day';
 
+			// Sélection single
+			if (this.mode === 'single' && this.selectedDate) {
+				if (date.getTime() === this.selectedDate.getTime()) {
+					el.classList.add('selected');
+				}
+			}
+			// Sélection multiple
+			if (this.mode === 'multiple' && this.selectedDates) {
+				if (this.selectedDates.find((d) => d.getTime() === date.getTime())) {
+					el.classList.add('selected');
+				}
+			}
 			// Re-apply .blocked if date is blocked
 			const dateTime = new Date(
 				date.getFullYear(),
@@ -282,69 +332,69 @@ export class NovaCalendar {
 					current.setDate(current.getDate() + dir);
 				}
 			}
+			if (this.mode === 'range') {
+				// Ajout des classes range-start et range-end
+				if (fromDate && toDate && !rangeBlocked) {
+					// Force à minuit partout
+					const fromTime = new Date(
+						fromDate.getFullYear(),
+						fromDate.getMonth(),
+						fromDate.getDate()
+					).getTime();
+					const toTime = new Date(
+						toDate.getFullYear(),
+						toDate.getMonth(),
+						toDate.getDate()
+					).getTime();
+					const dateTime = new Date(
+						date.getFullYear(),
+						date.getMonth(),
+						date.getDate()
+					).getTime();
 
-			// Ajout des classes range-start et range-end
-			if (fromDate && toDate && !rangeBlocked) {
-				// Force à minuit partout
-				const fromTime = new Date(
-					fromDate.getFullYear(),
-					fromDate.getMonth(),
-					fromDate.getDate()
-				).getTime();
-				const toTime = new Date(
-					toDate.getFullYear(),
-					toDate.getMonth(),
-					toDate.getDate()
-				).getTime();
-				const dateTime = new Date(
-					date.getFullYear(),
-					date.getMonth(),
-					date.getDate()
-				).getTime();
+					const minTime = Math.min(fromTime, toTime);
+					const maxTime = Math.max(fromTime, toTime);
 
-				const minTime = Math.min(fromTime, toTime);
-				const maxTime = Math.max(fromTime, toTime);
-
-				if (dateTime === minTime) {
-					el.classList.add('selected', 'range-start');
-				} else if (dateTime === maxTime) {
-					el.classList.add('selected', 'range-end');
-				} else if (dateTime > minTime && dateTime < maxTime) {
-					el.classList.add('in-range');
+					if (dateTime === minTime) {
+						el.classList.add('selected', 'range-start');
+					} else if (dateTime === maxTime) {
+						el.classList.add('selected', 'range-end');
+					} else if (dateTime > minTime && dateTime < maxTime) {
+						el.classList.add('in-range');
+					}
 				}
-			}
+				// Hover classique (hover après start)
+				if (
+					!toDate &&
+					this.hoverDate &&
+					fromDate &&
+					this.hoverDate.getTime() > fromDate.getTime() &&
+					date.getTime() === this.hoverDate.getTime() &&
+					!rangeBlocked
+				) {
+					el.classList.add('range-end');
+				}
+				// Hover inversé (hover avant start)
+				if (
+					!toDate &&
+					this.hoverDate &&
+					fromDate &&
+					this.hoverDate.getTime() < fromDate.getTime() &&
+					!isBeforeToday &&
+					date.getTime() === this.hoverDate.getTime() &&
+					!rangeBlocked
+				) {
+					el.classList.add('range-start');
+				}
 
-			// Hover classique (hover après start)
-			if (
-				!toDate &&
-				this.hoverDate &&
-				fromDate &&
-				this.hoverDate.getTime() > fromDate.getTime() &&
-				date.getTime() === this.hoverDate.getTime() &&
-				!rangeBlocked
-			) {
-				el.classList.add('range-end');
-			}
-			// Hover inversé (hover avant start)
-			if (
-				!toDate &&
-				this.hoverDate &&
-				fromDate &&
-				this.hoverDate.getTime() < fromDate.getTime() &&
-				!isBeforeToday &&
-				date.getTime() === this.hoverDate.getTime() &&
-				!rangeBlocked
-			) {
-				el.classList.add('range-start');
-			}
-
-			// Affichage de la première date sélectionnée si aucune endDate
-			if (fromDate && !toDate && date.getTime() === fromDate.getTime()) {
-				// Si hoverDate existe et est avant startDate, la startDate devient range-end
-				if (this.hoverDate && this.hoverDate.getTime() < fromDate.getTime()) {
-					el.classList.add('selected', 'range-end');
-				} else {
-					el.classList.add('selected', 'range-start');
+				// Affichage de la première date sélectionnée si aucune endDate
+				if (fromDate && !toDate && date.getTime() === fromDate.getTime()) {
+					// Si hoverDate existe et est avant startDate, la startDate devient range-end
+					if (this.hoverDate && this.hoverDate.getTime() < fromDate.getTime()) {
+						el.classList.add('selected', 'range-end');
+					} else {
+						el.classList.add('selected', 'range-start');
+					}
 				}
 			}
 		});
@@ -374,6 +424,34 @@ export class NovaCalendar {
 			this.date.getMonth(),
 			day
 		);
+
+		if (this.mode === 'single') {
+			this.selectedDate = selected;
+			this.startDate = selected; // Ajout pour permettre l'affichage dans updateButtonLabel
+			this.hideCalendar();
+			this.updateButtonLabel();
+			this.updateDayClasses();
+			// ... déclencher événement personnalisé
+			return;
+		}
+		if (this.mode === 'multiple') {
+			const dateKey = selected.getTime();
+			const index = this.selectedDates.findIndex(
+				(d) => d.getTime() === dateKey
+			);
+			if (index === -1) {
+				this.selectedDates.push(selected); // Ajouter
+			} else {
+				this.selectedDates.splice(index, 1); // Désélectionner
+			}
+			// Mettre à jour le visuel et le label
+			this.updateButtonLabel();
+			this.renderCalendar(); // <-- Ajouté pour rafraîchir la multi-list
+			this.updateDayClasses();
+			// ... déclencher événement personnalisé si besoin
+			return;
+		}
+
 		const today = new Date();
 		today.setHours(0, 0, 0, 0);
 		const isBeforeToday = selected < today;
@@ -431,41 +509,34 @@ export class NovaCalendar {
 		}
 	}
 
-	// updateInput() {
-	// 	if (this.startDate && this.endDate) {
-	// 		const start =
-	// 			this.startDate < this.endDate ? this.startDate : this.endDate;
-	// 		const end = this.startDate < this.endDate ? this.endDate : this.startDate;
-	// 		this.input.value = `${this.formatDate(start)} au ${this.formatDate(end)}`;
-	// 	} else if (this.startDate) {
-	// 		this.input.value = this.formatDate(this.startDate);
-	// 	}
-	// 	if (this.startDate && this.endDate) {
-	// 		const start =
-	// 			this.startDate < this.endDate ? this.startDate : this.endDate;
-	// 		const end = this.startDate < this.endDate ? this.endDate : this.startDate;
-	// 		const event = new CustomEvent('rangeSelected', {
-	// 			detail: {
-	// 				start: this.formatDate(start),
-	// 				end: this.formatDate(end),
-	// 			},
-	// 		});
-	// 		this.input.dispatchEvent(event);
-	// 	}
-	// }
-
 	updateButtonLabel() {
 		const btn = this.trigger;
 		let text = this.options.placeholder;
-		if (this.startDate && this.endDate) {
+		if (
+			this.mode === 'multiple' &&
+			this.selectedDates &&
+			this.selectedDates.length > 0
+		) {
+			// Trie les dates par ordre chronologique
+			const sorted = [...this.selectedDates].sort((a, b) => a - b);
+			text = sorted.map((d) => this.formatDisplay(d)).join(', ');
+		} else if (this.startDate && this.endDate) {
+			// Affiche toujours la date la plus proche puis la plus éloignée
+			const d1 = this.startDate;
+			const d2 = this.endDate;
+			const first = d1.getTime() <= d2.getTime() ? d1 : d2;
+			const last = d1.getTime() > d2.getTime() ? d1 : d2;
 			text = this.options.format(
-				this.formatDisplay(this.startDate),
-				this.formatDisplay(this.endDate)
+				this.formatDisplay(first),
+				this.formatDisplay(last)
 			);
 		} else if (this.startDate) {
 			text = this.options.format(this.formatDisplay(this.startDate), null);
 		}
-		btn.querySelector('#dates').textContent = text;
+		const labelEl = btn ? btn.querySelector('.dates') : null;
+		if (labelEl) {
+			labelEl.textContent = text;
+		}
 	}
 
 	formatDisplay(date) {
