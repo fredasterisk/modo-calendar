@@ -1,4 +1,6 @@
+/* Calendar */
 .nova-calendar {
+  font-family: inherit;
   border: 1px solid #eaeaea;
   font-size: 18px;
   border-radius: .5em;
@@ -6,7 +8,6 @@
   margin-top:.5em;
   width: max-content;
   display: inline-block;
-  font-family: Poppins;
 }
 
 .nova-calendar div.days {

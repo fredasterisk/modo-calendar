@@ -3,27 +3,39 @@
 	<head>
 		<meta charset="UTF-8" />
 		<title>Démo Nova Calendar</title>
+		<link rel="stylesheet" href="/src/demo.css" />
 		<script type="module" src="/src/index.js"></script>
 	</head>
 	<body>
-		<input type="text" id="datepicker" placeholder="Choisissez une date" />
-
+		<!-- <input type="text" id="datepicker" placeholder="Choisissez une date" /> -->
+		<button id="datepicker-btn" type="button" class="trigger">
+			<span class="icon"
+				><svg
+					xmlns="http://www.w3.org/2000/svg"
+					viewBox="0 0 24 24"
+					fill="currentColor"
+				>
+					<path
+						d="M9 1V3H15V1H17V3H21C21.5523 3 22 3.44772 22 4V20C22 20.5523 21.5523 21 21 21H3C2.44772 21 2 20.5523 2 20V4C2 3.44772 2.44772 3 3 3H7V1H9ZM20 11H4V19H20V11ZM11 13V17H6V13H11ZM7 5H4V9H20V5H17V7H15V5H9V7H7V5Z"
+					></path>
+				</svg>
+			</span>
+			<div>
+				<span class="label">Dates</span>
+				<span id="dates">Choisir...</span>
+			</div>
+		</button>
 		<script type="module">
-			const calendar = new NovaCalendar();
-			calendar.attachTo('#datepicker');
-
+			const calendar = new NovaCalendar({
+				trigger: '#datepicker-btn',
+				format: (start, end) => `${start} - ${end}`, // Fonction de format
+			});
+			//calendar.attachTo('#datepicker');
+			calendar.attachToTrigger('#datepicker-btn');
 			// Exemple de blocage de dates :
 			calendar.setBlockedDates(['2025-07-04', '2025-07-10', '2025-06-10']);
-
 			// Exemple de présélection d'une plage
 			calendar.setRange('2025-05-22', '2025-06-05');
-
-			// Écouter la sélection de plage
-			document
-				.querySelector('#datepicker')
-				.addEventListener('rangeSelected', (e) => {
-					console.log('Sélection:', e.detail.start, e.detail.end);
-				});
 		</script>
 	</body>
 </html>

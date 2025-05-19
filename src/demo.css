@@ -1,0 +1,46 @@
+/* Calendar */
+html {
+    font-family: 'Inter', Poppins, sans-serif;
+    font-feature-settings: "ss01" 1, "ss02" 1, "ss03" 1, "ss04" 1, "ss05" 1, "ss06" 1, "ss07" 1, "ss08" 1, "ss09" 1, "ss10" 1, "ss11" 1, "ss12" 1, "ss13" 1, "ss14" 1, "ss15" 1, "ss16" 1, "ss17" 1;
+    @import url('https://fonts.googleapis.com/css2?family=Inter:opsz,wght@16..1000,400;700&display=swap');
+}
+
+/* Button */
+
+.trigger {
+    min-width: 200px;
+    background: transparent;
+    color: #252e38;
+    border: 1px solid #eaeaea;
+    padding: .5rem 1em .25rem 1em;
+    border-radius: .5rem;
+    font-size: 16px;
+    font-family: inherit;
+    cursor: pointer;
+}
+
+.trigger {
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+}
+
+.trigger .label {
+  display: block;
+  text-align: left;
+  font-size: .75rem;
+  font-weight: 500;
+  line-height: .8;
+}
+
+.trigger .icon {
+    display: flex;
+    align-items: center;
+}
+
+.trigger .icon svg {
+  width: 1.5em;
+  height: 1.5em;
+  fill: #252e38;
+  transition: transform .2s ease-in-out;
+}

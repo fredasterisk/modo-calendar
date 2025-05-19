@@ -1,6 +1,16 @@
 export class NovaCalendar {
 	constructor(options = {}) {
-		this.options = options;
+		this.options = {
+			trigger: options.trigger || null,
+			icon: options.icon || '',
+			label: options.label || 'Dates',
+			placeholder: options.placeholder || 'Choisir...',
+			format:
+				options.format ||
+				((start, end) =>
+					start && end ? `${start} - ${end}` : start || options.placeholder),
+			...options,
+		};
 		this.date = new Date();
 		this.startDate = null;
 		this.endDate = null;
@@ -21,43 +31,88 @@ export class NovaCalendar {
 		this.endDate = endDate;
 		this.hoverDate = null;
 		console.log('setRange this:', this);
-		this.updateInput();
+		this.updateButtonLabel();
 		console.log('Avant renderCalendar', this.startDate, this.endDate);
 		this.renderCalendar();
 		this.updateDayClasses();
 	}
 
 	setBlockedDates(dates) {
-	this.blockedDates = dates.map((d) => {
-		const dateObj = NovaCalendar.parseYMD(d);
-		return dateObj.getTime();
-	});
+		this.blockedDates = dates.map((d) => {
+			const dateObj = NovaCalendar.parseYMD(d);
+			return dateObj.getTime();
+		});
 		this.renderCalendar();
 		this.updateDayClasses();
 	}
 
-	attachTo(selector) {
-		const input = document.querySelector(selector);
-		if (!input) return;
+	// attachTo(selector) {
+	// 	const input = document.querySelector(selector);
+	// 	if (!input) return;
 
-		const container = document.createElement('div');
-		container.className = 'nova-calendar';
-		container.style.display = 'none';
-		this.container = container;
-		this.input = input;
+	// 	const container = document.createElement('div');
+	// 	container.className = 'nova-calendar';
+	// 	container.style.display = 'none';
+	// 	this.container = container;
+	// 	this.input = input;
 
-		this.renderCalendar(); // Un seul render au départ
-		input.insertAdjacentElement('afterend', container);
+	// 	this.renderCalendar(); // Un seul render au départ
+	// 	input.insertAdjacentElement('afterend', container);
 
-		input.addEventListener('focus', () => {
-			container.style.display = 'block';
+	// 	input.addEventListener('focus', () => {
+	// 		container.style.display = 'block';
+	// 	});
+
+	// 	document.addEventListener('click', (e) => {
+	// 		if (!container.contains(e.target) && e.target !== input) {
+	// 			container.style.display = 'none';
+	// 		}
+	// 	});
+	// }
+
+	attachToTrigger(selector) {
+		const btn = document.querySelector(selector);
+		if (!btn) return;
+
+		this.trigger = btn;
+
+		// Affiche le calendrier au clic
+		btn.addEventListener('click', (e) => {
+			e.stopPropagation();
+			this.showCalendar();
 		});
 
+		// Masque le calendrier si clic ailleurs
 		document.addEventListener('click', (e) => {
-			if (!container.contains(e.target) && e.target !== input) {
-				container.style.display = 'none';
+			if (
+				this.container &&
+				!this.container.contains(e.target) &&
+				e.target !== btn
+			) {
+				this.hideCalendar();
 			}
 		});
+
+		// Crée le conteneur calendrier caché
+		this.container = document.createElement('div');
+		this.container.className = 'nova-calendar';
+		this.container.style.display = 'none';
+		document.body.appendChild(this.container);
+
+		this.renderCalendar();
+	}
+
+	showCalendar() {
+		this.container.style.display = 'block';
+		// positionne dynamiquement près du bouton
+		const rect = this.trigger.getBoundingClientRect();
+		this.container.style.position = 'absolute';
+		this.container.style.left = rect.left + window.scrollX + 'px';
+		this.container.style.top = rect.bottom + window.scrollY + 'px';
+	}
+
+	hideCalendar() {
+		this.container.style.display = 'none';
 	}
 
 	renderCalendar() {
@@ -184,7 +239,11 @@ export class NovaCalendar {
 			el.className = 'day';
 
 			// Re-apply .blocked if date is blocked
-			const dateTime = new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
+			const dateTime = new Date(
+				date.getFullYear(),
+				date.getMonth(),
+				date.getDate()
+			).getTime();
 			if (this.blockedDates && this.blockedDates.includes(dateTime)) {
 				el.classList.add('blocked');
 				el.style.pointerEvents = 'none';
@@ -202,8 +261,16 @@ export class NovaCalendar {
 			// --- Empêcher le range de dépasser une date bloquée ---
 			let rangeBlocked = false;
 			if (this.startDate && (this.endDate || this.hoverDate)) {
-				const from = new Date(this.startDate.getFullYear(), this.startDate.getMonth(), this.startDate.getDate());
-				const to = new Date((this.endDate || this.hoverDate).getFullYear(), (this.endDate || this.hoverDate).getMonth(), (this.endDate || this.hoverDate).getDate());
+				const from = new Date(
+					this.startDate.getFullYear(),
+					this.startDate.getMonth(),
+					this.startDate.getDate()
+				);
+				const to = new Date(
+					(this.endDate || this.hoverDate).getFullYear(),
+					(this.endDate || this.hoverDate).getMonth(),
+					(this.endDate || this.hoverDate).getDate()
+				);
 				const dir = from < to ? 1 : -1;
 				let current = new Date(from);
 				while ((dir > 0 && current <= date) || (dir < 0 && current >= date)) {
@@ -317,58 +384,95 @@ export class NovaCalendar {
 			this.hoverDate = null;
 			this.updateDayClasses();
 		} else {
-    	// Permettre la sélection d'une date de fin avant la startDate, sauf si elle est before-today
-    	if (!isBeforeToday) {
-        	// Empêche de traverser une date bloquée
-        	let fixedEndDate = selected;
-        	const rangeArr = this.getDateRangeArray(this.startDate, selected);
-        	for (let i = 1; i < rangeArr.length; i++) { // commence à 1 pour sauter startDate
-				const day = rangeArr[i];
-				const dayAtMidnight = new Date(day.getFullYear(), day.getMonth(), day.getDate());
-				const dayTime = dayAtMidnight.getTime();
-				console.log('Check blocked', dayAtMidnight, dayTime, this.blockedDates.includes(dayTime));
+			// Permettre la sélection d'une date de fin avant la startDate, sauf si elle est before-today
+			if (!isBeforeToday) {
+				// Empêche de traverser une date bloquée
+				let fixedEndDate = selected;
+				const rangeArr = this.getDateRangeArray(this.startDate, selected);
+				for (let i = 1; i < rangeArr.length; i++) {
+					// commence à 1 pour sauter startDate
+					const day = rangeArr[i];
+					const dayAtMidnight = new Date(
+						day.getFullYear(),
+						day.getMonth(),
+						day.getDate()
+					);
+					const dayTime = dayAtMidnight.getTime();
+					console.log(
+						'Check blocked',
+						dayAtMidnight,
+						dayTime,
+						this.blockedDates.includes(dayTime)
+					);
 
-				if (this.blockedDates && this.blockedDates.includes(dayTime)) {
-		// La date précédente devient la vraie fin (donc i-1 dans le tableau)
-		const previousDay = rangeArr[i - 1];
-		fixedEndDate = new Date(previousDay.getFullYear(), previousDay.getMonth(), previousDay.getDate());
-		break;
+					if (this.blockedDates && this.blockedDates.includes(dayTime)) {
+						// La date précédente devient la vraie fin (donc i-1 dans le tableau)
+						const previousDay = rangeArr[i - 1];
+						fixedEndDate = new Date(
+							previousDay.getFullYear(),
+							previousDay.getMonth(),
+							previousDay.getDate()
+						);
+						break;
+					}
 				}
+				this.endDate = fixedEndDate;
+				this.hoverDate = null;
+				this.updateButtonLabel();
+				this.updateDayClasses();
+				this.container.style.display = 'none';
+			} else {
+				// Si before-today, on redémarre la sélection
+				this.startDate = selected;
+				this.endDate = null;
+				this.hoverDate = null;
+				this.updateDayClasses();
 			}
-			this.endDate = fixedEndDate;
-			this.hoverDate = null;
-			this.updateInput();
-			this.updateDayClasses();
-			this.container.style.display = 'none';
-		} else {
-			// Si before-today, on redémarre la sélection
-			this.startDate = selected;
-			this.endDate = null;
-			this.hoverDate = null;
-			this.updateDayClasses();
 		}
-}
 	}
 
-	updateInput() {
+	// updateInput() {
+	// 	if (this.startDate && this.endDate) {
+	// 		const start =
+	// 			this.startDate < this.endDate ? this.startDate : this.endDate;
+	// 		const end = this.startDate < this.endDate ? this.endDate : this.startDate;
+	// 		this.input.value = `${this.formatDate(start)} au ${this.formatDate(end)}`;
+	// 	} else if (this.startDate) {
+	// 		this.input.value = this.formatDate(this.startDate);
+	// 	}
+	// 	if (this.startDate && this.endDate) {
+	// 		const start =
+	// 			this.startDate < this.endDate ? this.startDate : this.endDate;
+	// 		const end = this.startDate < this.endDate ? this.endDate : this.startDate;
+	// 		const event = new CustomEvent('rangeSelected', {
+	// 			detail: {
+	// 				start: this.formatDate(start),
+	// 				end: this.formatDate(end),
+	// 			},
+	// 		});
+	// 		this.input.dispatchEvent(event);
+	// 	}
+	// }
+
+	updateButtonLabel() {
+		const btn = this.trigger;
+		let text = this.options.placeholder;
 		if (this.startDate && this.endDate) {
-			const start = this.startDate < this.endDate ? this.startDate : this.endDate;
-			const end = this.startDate < this.endDate ? this.endDate : this.startDate;
-			this.input.value = `${this.formatDate(start)} au ${this.formatDate(end)}`;
+			text = this.options.format(
+				this.formatDisplay(this.startDate),
+				this.formatDisplay(this.endDate)
+			);
 		} else if (this.startDate) {
-			this.input.value = this.formatDate(this.startDate);
+			text = this.options.format(this.formatDisplay(this.startDate), null);
 		}
-		if (this.startDate && this.endDate) {
-			const start = this.startDate < this.endDate ? this.startDate : this.endDate;
-			const end = this.startDate < this.endDate ? this.endDate : this.startDate;
-			const event = new CustomEvent('rangeSelected', {
-				detail: {
-					start: this.formatDate(start),
-					end: this.formatDate(end),
-				},
-			});
-			this.input.dispatchEvent(event);
-		}
+		btn.querySelector('#dates').textContent = text;
+	}
+
+	formatDisplay(date) {
+		// Format fr "20 mai" ou custom
+		return date
+			? date.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' })
+			: '';
 	}
 
 	formatDate(date) {
