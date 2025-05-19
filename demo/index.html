@@ -81,13 +81,11 @@
 			calendarRange.attachToTrigger('#datepicker-range');
 			calendarMulti.attachToTrigger('#datepicker-multiple');
 			// Exemple de blocage de dates :
-			calendarSingle.setBlockedDates([
-				'2025-07-04',
-				'2025-07-10',
-				'2025-06-10',
-			]);
+			calendarRange.setBlockedDates(['2025-07-04', '2025-07-10', '2025-06-10']);
+			calendarRange.setBlockedDates(['2025-07-04', '2025-07-10', '2025-06-10']);
 			// Exemple de présélection d'une plage
-			calendarRange.setRange('2025-05-22', '2025-06-05');
+			calendarRange.setNoRangeStartDates(['2025-05-24', '2025-05-27']);
+			calendarRange.setNoRangeEndDates(['2025-05-27', '2025-05-29']);
 		</script>
 	</body>
 </html>

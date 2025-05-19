@@ -61,6 +61,10 @@ button:is(.prev-month, .next-month):hover {
   max-width: 240px;
 }
 
+.multi-date-empty {
+  font-size: .825em;
+}
+
 .nova-btn {
   font-family: inherit;
   padding: .25em .5em;
@@ -68,6 +72,7 @@ button:is(.prev-month, .next-month):hover {
   border-radius: .25em;
   background: transparent;
   color: #252e38;
+  cursor: pointer;
 }
 
 .nova-btn.remove-date:hover {
@@ -132,7 +137,51 @@ button:is(.prev-month, .next-month):hover {
 
 .day.blocked {
 	opacity: 0.5;
-	background: repeating-linear-gradient(135deg, transparent, #ff9800 2px, transparent 0, transparent 4px);
+	background: repeating-linear-gradient(135deg, transparent, #868686 2px, transparent 0, transparent 4px);
 	cursor: not-allowed;
   pointer-events: none;
+}
+
+.day.no-range-start, .day.no-range-end {
+  position: relative;
+}
+
+.day:is(.no-range-start, .no-range-end):after {
+  content: "";
+  position: absolute;
+  opacity: 0.5;
+  top: 0;
+  right: 0;
+  width: 100%;
+  height: 100%;
+  background: repeating-linear-gradient(135deg, transparent, #ff9800 2px, transparent 0, transparent 4px);
+  clip-path: polygon(100% 0, 0 0, 100% 100%);
+  pointer-events: none;
+}
+
+.day.no-range-start:after {
+  background: repeating-linear-gradient(135deg, transparent, #ff9800 2px, transparent 0, transparent 4px);
+  clip-path: polygon(100% 0, 0 0, 100% 100%);
+}
+
+.day.no-range-end:after {
+  background: repeating-linear-gradient(135deg, transparent, #ff9800 2px, transparent 0, transparent 4px);
+  clip-path: polygon(0 100%, 0 0, 100% 100%);
+}
+
+.day.no-range-start.no-range-end:after {
+  clip-path: unset;
+}
+
+.nova-calendar.invalid-range {
+  animation: shake 0.4s cubic-bezier(.36,.07,.19,.97) both;
+  border-color: #ff9800;
+}
+
+@keyframes shake {
+  10%, 90% { transform: translateX(-2px); }
+  20%, 80% { transform: translateX(2px); }
+  30%, 50%, 70% { transform: translateX(-4px); }
+  40%, 60% { transform: translateX(4px); }
+  100% { transform: none; }
 }
