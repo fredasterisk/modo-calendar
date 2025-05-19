@@ -6,5 +6,4 @@ window.NovaCalendar = NovaCalendar;
 import { timePlugin } from './plugins/time/time-plugin.js';
 import './plugins/time/styles.css';
 
-NovaCalendar.use(timePlugin);
 window.timePlugin = timePlugin;

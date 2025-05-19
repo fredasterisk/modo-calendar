@@ -78,6 +78,11 @@ export class NovaCalendar {
 		this.container.className = 'nova-calendar';
 		this.container.style.display = 'none';
 		this.shadowRoot.appendChild(this.container);
+		// Ajout du champ hidden pour le timestamp
+		this.hiddenInput = document.createElement('input');
+		this.hiddenInput.type = 'hidden';
+		this.hiddenInput.className = 'nova-calendar-timestamp';
+		this.shadowRoot.appendChild(this.hiddenInput);
 		btn.addEventListener('click', (e) => {
 			e.stopPropagation();
 			this.showCalendar();
@@ -94,6 +99,7 @@ export class NovaCalendar {
 				this.hideCalendar();
 		});
 		this.renderCalendar();
+		this.updateHiddenInput();
 	}
 	showCalendar() {
 		NovaCalendar.instances.forEach((i) => {
@@ -246,6 +252,7 @@ export class NovaCalendar {
 			this.selectedDate = this.startDate = selected;
 			this.updateButtonLabel();
 			this.updateDayClasses();
+			this.updateHiddenInput();
 			// Le plugin timePlugin gère le focus/fermeture si besoin
 			this.plugins?.forEach((p) => p.onDateSelected?.(selected, this));
 			return;
@@ -260,6 +267,7 @@ export class NovaCalendar {
 			this.updateButtonLabel();
 			this.renderCalendar();
 			this.updateDayClasses();
+			this.updateHiddenInput();
 			return;
 		}
 		const today = new Date();
@@ -302,6 +310,7 @@ export class NovaCalendar {
 			this.startDate = selected;
 			this.endDate = this.hoverDate = null;
 			this.updateDayClasses();
+			this.updateHiddenInput();
 		} else if (!isBeforeToday) {
 			// Prevent same start and end date in range mode
 			let fixedEndDate = selected;
@@ -332,11 +341,13 @@ export class NovaCalendar {
 				this.hoverDate = null;
 				this.updateDayClasses();
 				this.triggerInvalidRangeFeedback();
+				this.updateHiddenInput();
 				return;
 			}
 			// Prevent same start and end date in range mode
 			if (selected.getTime() === this.startDate.getTime()) {
 				this.triggerInvalidRangeFeedback();
+				this.updateHiddenInput();
 				return;
 			}
 			this.endDate = fixedEndDate;
@@ -344,10 +355,12 @@ export class NovaCalendar {
 			this.updateButtonLabel();
 			this.updateDayClasses();
 			this.container.style.display = 'none';
+			this.updateHiddenInput();
 		} else {
 			this.startDate = selected;
 			this.endDate = this.hoverDate = null;
 			this.updateDayClasses();
+			this.updateHiddenInput();
 		}
 		this.plugins?.forEach((p) => p.onDateSelected?.(selected, this));
 	}
@@ -505,6 +518,7 @@ export class NovaCalendar {
 			text = this.options.format(this.formatDisplay(this.startDate), null);
 		const labelEl = btn ? btn.querySelector('.dates') : null;
 		if (labelEl) labelEl.textContent = text;
+		this.updateHiddenInput();
 	}
 	formatDisplay(date) {
 		return date
@@ -520,6 +534,23 @@ export class NovaCalendar {
 	addPlugin(plugin) {
 		this.plugins.push(plugin);
 		plugin.onInit?.(this);
+	}
+	updateHiddenInput() {
+		if (!this.hiddenInput) return;
+		if (this.mode === 'single') {
+			this.hiddenInput.value = this.selectedDate ? this.selectedDate.getTime() : '';
+		} else if (this.mode === 'range') {
+			const t1 = this.startDate ? this.startDate.getTime() : '';
+			const t2 = this.endDate ? this.endDate.getTime() : '';
+			this.hiddenInput.value = t1 && t2 ? `${t1},${t2}` : t1 || '';
+		} else if (this.mode === 'multiple') {
+			if (this.selectedDates && this.selectedDates.length > 0) {
+				const sorted = [...this.selectedDates].sort((a, b) => a - b);
+				this.hiddenInput.value = sorted.map(d => d.getTime()).join(',');
+			} else {
+				this.hiddenInput.value = '';
+			}
+		}
 	}
 }
 

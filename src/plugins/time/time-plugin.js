@@ -17,9 +17,9 @@ export const timePlugin = {
 			calendar.selectedTime = input.value;
 		});
 	},
-	onDateSelected(date, calendar) {
-		calendar.selectedTime = '';
-		const input = calendar.shadowRoot.querySelector('.nova-time-input');
-		if (input) input.value = '';
-	},
+	// onDateSelected(date, calendar) {
+	// 	calendar.selectedTime = '';
+	// 	const input = calendar.shadowRoot.querySelector('.nova-time-input');
+	// 	if (input) input.value = '';
+	// },
 };
