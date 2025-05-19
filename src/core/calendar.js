@@ -8,6 +8,10 @@ import calendarStyles from './styles.css?inline';
  */
 export class NovaCalendar {
 	static instances = [];
+	static globalPlugins = [];
+	static use(plugin) {
+		this.globalPlugins.push(plugin);
+	}
 	constructor(options = {}) {
 		this.options = {
 			trigger: options.trigger || null,
@@ -25,6 +29,14 @@ export class NovaCalendar {
 		this.noRangeStartDates = [];
 		this.noRangeEndDates = [];
 		if (this.mode === 'multiple') this.selectedDates = [];
+		this.plugins = [];
+		// Ajoute les plugins globaux à chaque instance
+		if (this.constructor.globalPlugins) {
+			this.constructor.globalPlugins.forEach((p) => this.addPlugin(p));
+		}
+		if (options.plugins) {
+			options.plugins.forEach((p) => this.addPlugin(p));
+		}
 		NovaCalendar.instances.push(this);
 	}
 	static parseYMD(str) {
@@ -45,9 +57,7 @@ export class NovaCalendar {
 		this.updateDayClasses();
 	}
 	setNoRangeStartDates(dates) {
-		this.noRangeStartDates = dates.map((d) =>
-			NovaCalendar.parseYMD(d).getTime()
-		);
+		this.noRangeStartDates = dates.map((d) => NovaCalendar.parseYMD(d).getTime());
 		this.renderCalendar();
 		this.updateDayClasses();
 	}
@@ -94,6 +104,7 @@ export class NovaCalendar {
 		this.shadowHost.style.position = 'absolute';
 		this.shadowHost.style.left = rect.left + window.scrollX + 'px';
 		this.shadowHost.style.top = rect.bottom + window.scrollY + 'px';
+		this.plugins?.forEach((p) => p.onCalendarOpen?.(this));
 	}
 	hideCalendar() {
 		this.container.style.display = 'none';
@@ -158,6 +169,7 @@ export class NovaCalendar {
 				});
 			});
 		}
+		this.plugins?.forEach((p) => p.onRender?.(this));
 	}
 	generateDays(date) {
 		const daysContainer = document.createElement('div');
@@ -232,9 +244,10 @@ export class NovaCalendar {
 		const selectedTime = selected.getTime();
 		if (this.mode === 'single') {
 			this.selectedDate = this.startDate = selected;
-			this.hideCalendar();
 			this.updateButtonLabel();
 			this.updateDayClasses();
+			// Le plugin timePlugin gère le focus/fermeture si besoin
+			this.plugins?.forEach((p) => p.onDateSelected?.(selected, this));
 			return;
 		}
 		if (this.mode === 'multiple') {
@@ -336,6 +349,7 @@ export class NovaCalendar {
 			this.endDate = this.hoverDate = null;
 			this.updateDayClasses();
 		}
+		this.plugins?.forEach((p) => p.onDateSelected?.(selected, this));
 	}
 	updateDayClasses() {
 		if (!this.dayElements) return;
@@ -503,4 +517,14 @@ export class NovaCalendar {
 			day = date.getDate().toString().padStart(2, '0');
 		return `${year}-${month}-${day}`;
 	}
+	addPlugin(plugin) {
+		this.plugins.push(plugin);
+		plugin.onInit?.(this);
+	}
 }
+
+// Pour charger dynamiquement les plugins depuis un dossier
+import { timePlugin } from '../plugins/time/time-plugin.js';
+
+// Plugin de sélection d'heure pour NovaCalendar
+export { timePlugin };

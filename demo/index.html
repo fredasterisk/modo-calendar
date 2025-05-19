@@ -3,7 +3,7 @@
 	<head>
 		<meta charset="UTF-8" />
 		<title>Démo Nova Calendar</title>
-		<link rel="stylesheet" href="/src/demo.css" />
+		<link rel="stylesheet" href="/demo/demo.css" />
 		<script type="module" src="/src/index.js"></script>
 	</head>
 	<body>
@@ -64,6 +64,7 @@
 		<script type="module">
 			const calendarSingle = new NovaCalendar({
 				trigger: '#datepicker-single',
+				plugins: [timePlugin],
 				mode: 'single', // Mode de sélection de date simple
 				//format: (date) => date.toLocaleDateString('fr-FR'), // Fonction de format personnalisée
 			});
