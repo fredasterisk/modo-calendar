@@ -24,6 +24,7 @@ export class NovaCalendar {
 		};
 		this.date = new Date();
 		this.mode = options.mode || 'range';
+		this.months = options.months || 1;
 		this.startDate = this.endDate = this.hoverDate = null;
 		this.blockedDates = [];
 		this.noRangeStartDates = [];
@@ -57,7 +58,9 @@ export class NovaCalendar {
 		this.updateDayClasses();
 	}
 	setNoRangeStartDates(dates) {
-		this.noRangeStartDates = dates.map((d) => NovaCalendar.parseYMD(d).getTime());
+		this.noRangeStartDates = dates.map((d) =>
+			NovaCalendar.parseYMD(d).getTime()
+		);
 		this.renderCalendar();
 		this.updateDayClasses();
 	}
@@ -115,31 +118,142 @@ export class NovaCalendar {
 	hideCalendar() {
 		this.container.style.display = 'none';
 	}
+	/**
+	 * Permet de naviguer chaque mois indépendamment dans l'affichage multi-mois
+	 */
 	renderCalendar() {
-		const month = this.date.toLocaleString('default', { month: 'long' }),
-			year = this.date.getFullYear();
-		if (!this.container.querySelector('.header')) {
+		this.container.innerHTML = '';
+		if (!this.monthOffsets || this.monthOffsets.length !== this.months) {
+			this.monthOffsets = Array(this.months).fill(0);
+		}
+		const baseDate = new Date(this.date);
+		this.dayElements = [];
+
+		// Ajout d'un wrapper flex pour les mois
+		const monthsWrapper = document.createElement('div');
+		monthsWrapper.className = 'nova-months-wrapper';
+		this.container.appendChild(monthsWrapper);
+
+		for (let i = 0; i < this.months; i++) {
+			const offset = this.monthOffsets[i] || 0;
+			const monthDate = new Date(
+				baseDate.getFullYear(),
+				baseDate.getMonth() + i + offset,
+				1
+			);
+			const month = monthDate.toLocaleString('default', { month: 'long' }),
+				year = monthDate.getFullYear();
+
+			const monthCol = document.createElement('div');
+			monthCol.className = 'nova-month-col';
+			monthsWrapper.appendChild(monthCol);
+
 			const header = document.createElement('div');
 			header.classList.add('header');
-			header.innerHTML = `<button class="prev-month">&#8249;</button><span>${month} ${year}</span><button class="next-month">&#8250;</button>`;
-			this.container.appendChild(header);
-			header.querySelector('.prev-month').onclick = () => {
-				this.date.setMonth(this.date.getMonth() - 1);
+			header.innerHTML = `<span>${month} ${year}</span><span>
+				<button class="prev-month" data-month="${i}">&#8249;</button>
+				<button class="next-month" data-month="${i}">&#8250;</button>
+			</span>`;
+			monthCol.appendChild(header);
+
+			header.querySelector('.prev-month')?.addEventListener('click', (e) => {
+				e.stopPropagation();
+				const idx = +e.currentTarget.getAttribute('data-month');
+				// Empêche de reculer le mois 0 en dessous de la date de base
+				if (idx === 0 && (this.monthOffsets[0] || 0) <= 0) return;
+				// Empêche de reculer le mois i pour qu'il ne soit pas égal ou avant le mois précédent
+				if (idx > 0) {
+					const prevMonthDate = new Date(
+						baseDate.getFullYear(),
+						baseDate.getMonth() + idx - 1 + (this.monthOffsets[idx - 1] || 0),
+						1
+					);
+					const newMonthDate = new Date(
+						baseDate.getFullYear(),
+						baseDate.getMonth() + idx + (this.monthOffsets[idx] || 0) - 1,
+						1
+					);
+					if (newMonthDate <= prevMonthDate) return;
+				}
+				this.monthOffsets[idx] = (this.monthOffsets[idx] || 0) - 1;
+				// Synchronisation : ajuste les suivants
+				for (let j = idx + 1; j < this.months; j++) {
+					const prevMonthDate = new Date(
+						baseDate.getFullYear(),
+						baseDate.getMonth() + j - 1 + (this.monthOffsets[j - 1] || 0),
+						1
+					);
+					const nextMonthDate = new Date(
+						baseDate.getFullYear(),
+						baseDate.getMonth() + j + (this.monthOffsets[j] || 0),
+						1
+					);
+					if (nextMonthDate <= prevMonthDate) {
+						this.monthOffsets[j] =
+							prevMonthDate.getMonth() -
+							baseDate.getMonth() +
+							1 +
+							(prevMonthDate.getFullYear() - baseDate.getFullYear()) * 12 -
+							j;
+					}
+				}
 				this.renderCalendar();
 				this.updateDayClasses();
-			};
-			header.querySelector('.next-month').onclick = () => {
-				this.date.setMonth(this.date.getMonth() + 1);
+			});
+			header.querySelector('.next-month')?.addEventListener('click', (e) => {
+				e.stopPropagation();
+				const idx = +e.currentTarget.getAttribute('data-month');
+				// Empêche d'avancer le mois pour qu'il ne soit pas égal ou avant le mois précédent
+				if (idx > 0) {
+					const prevMonthDate = new Date(
+						baseDate.getFullYear(),
+						baseDate.getMonth() + idx - 1 + (this.monthOffsets[idx - 1] || 0),
+						1
+					);
+					const newMonthDate = new Date(
+						baseDate.getFullYear(),
+						baseDate.getMonth() + idx + (this.monthOffsets[idx] || 0) + 1,
+						1
+					);
+					if (newMonthDate <= prevMonthDate) return;
+				}
+				this.monthOffsets[idx] = (this.monthOffsets[idx] || 0) + 1;
+				// Synchronisation : ajuste les suivants
+				for (let j = idx + 1; j < this.months; j++) {
+					const prevMonthDate = new Date(
+						baseDate.getFullYear(),
+						baseDate.getMonth() + j - 1 + (this.monthOffsets[j - 1] || 0),
+						1
+					);
+					const nextMonthDate = new Date(
+						baseDate.getFullYear(),
+						baseDate.getMonth() + j + (this.monthOffsets[j] || 0),
+						1
+					);
+					if (nextMonthDate <= prevMonthDate) {
+						this.monthOffsets[j] =
+							prevMonthDate.getMonth() -
+							baseDate.getMonth() +
+							1 +
+							(prevMonthDate.getFullYear() - baseDate.getFullYear()) * 12 -
+							j;
+					}
+				}
 				this.renderCalendar();
 				this.updateDayClasses();
-			};
-		} else {
-			const headerSpan = this.container.querySelector('.header span');
-			if (headerSpan) headerSpan.textContent = `${month} ${year}`;
+			});
+
+			const days = this.generateDays(monthDate);
+			monthCol.appendChild(days);
+			days.querySelectorAll('.day').forEach((dayEl) => {
+				this.dayElements.push({
+					el: dayEl,
+					date: dayEl._date,
+				});
+			});
 		}
-		const existingDays = this.container.querySelector('.days');
-		if (existingDays) this.container.removeChild(existingDays);
-		this.container.appendChild(this.generateDays(this.date));
+
+		// Multi-list (pour mode multiple)
 		let multiList = this.container.querySelector('.multi-list');
 		if (multiList) this.container.removeChild(multiList);
 		if (this.mode === 'multiple') {
@@ -180,7 +294,7 @@ export class NovaCalendar {
 	generateDays(date) {
 		const daysContainer = document.createElement('div');
 		daysContainer.className = 'days';
-		this.dayElements = [];
+		// NE PAS réinitialiser this.dayElements ici !
 		const firstDay =
 			new Date(date.getFullYear(), date.getMonth(), 1).getDay() || 7;
 		const daysInMonth = new Date(
@@ -207,6 +321,7 @@ export class NovaCalendar {
 			day.appendChild(dayText);
 			day.textContent = d;
 			day.className = 'day';
+			day._date = currentDate;
 			const dateTime = currentDate.getTime();
 			if (this.blockedDates && this.blockedDates.includes(dateTime))
 				day.classList.add('blocked');
@@ -217,8 +332,8 @@ export class NovaCalendar {
 			const today = new Date();
 			today.setHours(0, 0, 0, 0);
 			if (currentDate < today) day.classList.add('before-today');
-			this.dayElements.push({ el: day, date: currentDate });
-			day.onclick = () => this.selectDate(d);
+			// NE PAS push dans this.dayElements ici !
+			day.onclick = () => this.selectDate(currentDate);
 			day.addEventListener('mousedown', (e) => e.stopPropagation());
 			day.addEventListener('click', (e) => e.stopPropagation());
 			day.onmouseover = () => {
@@ -241,12 +356,7 @@ export class NovaCalendar {
 			this.container.classList.remove('invalid-range');
 		}, 600);
 	}
-	selectDate(day) {
-		const selected = new Date(
-			this.date.getFullYear(),
-			this.date.getMonth(),
-			day
-		);
+	selectDate(selected) {
 		const selectedTime = selected.getTime();
 		if (this.mode === 'single') {
 			this.selectedDate = this.startDate = selected;
@@ -538,7 +648,9 @@ export class NovaCalendar {
 	updateHiddenInput() {
 		if (!this.hiddenInput) return;
 		if (this.mode === 'single') {
-			this.hiddenInput.value = this.selectedDate ? this.selectedDate.getTime() : '';
+			this.hiddenInput.value = this.selectedDate
+				? this.selectedDate.getTime()
+				: '';
 		} else if (this.mode === 'range') {
 			const t1 = this.startDate ? this.startDate.getTime() : '';
 			const t2 = this.endDate ? this.endDate.getTime() : '';
@@ -546,7 +658,7 @@ export class NovaCalendar {
 		} else if (this.mode === 'multiple') {
 			if (this.selectedDates && this.selectedDates.length > 0) {
 				const sorted = [...this.selectedDates].sort((a, b) => a - b);
-				this.hiddenInput.value = sorted.map(d => d.getTime()).join(',');
+				this.hiddenInput.value = sorted.map((d) => d.getTime()).join(',');
 			} else {
 				this.hiddenInput.value = '';
 			}

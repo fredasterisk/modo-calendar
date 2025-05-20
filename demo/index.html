@@ -64,17 +64,19 @@
 		<script type="module">
 			const calendarSingle = new NovaCalendar({
 				trigger: '#datepicker-single',
-				plugins: [timePlugin],
+				months: 1,
 				mode: 'single', // Mode de sélection de date simple
 				//format: (date) => date.toLocaleDateString('fr-FR'), // Fonction de format personnalisée
 			});
 			const calendarRange = new NovaCalendar({
 				trigger: '#datepicker-range',
+				months: 2,
 				mode: 'range', // Mode de sélection de plage de dates
 				format: (start, end) => `${start} - ${end}`, // Fonction de format
 			});
 			const calendarMulti = new NovaCalendar({
 				trigger: '#datepicker-multiple',
+				months: 2,
 				mode: 'multiple', // Mode de sélection de dates multiples
 			});
 			//calendar.attachTo('#datepicker');

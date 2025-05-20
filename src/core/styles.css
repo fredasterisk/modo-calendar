@@ -1,3 +1,10 @@
+/* Calendars */
+.nova-months-wrapper {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
 /* Calendar */
 .nova-calendar {
   font-family: inherit;
@@ -7,9 +14,10 @@
   padding: 1em;
   margin-top:.5em;
   width: max-content;
-  max-width: 300px;
+
   display: inline-block;
 }
+
 
 .nova-calendar div.days {
   display: grid;
@@ -34,7 +42,7 @@
 
 .header {
   display: flex;
-  justify-content: space-between;
+  justify-content: end;
   align-items: center;
 }
 
