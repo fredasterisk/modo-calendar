@@ -1,12 +1,43 @@
 /* Page */
+@import url('https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap');
+
 html {
-    font-family: 'Inter', Poppins, sans-serif;
-    font-feature-settings: "ss01" 1, "ss02" 1, "ss03" 1, "ss04" 1, "ss05" 1, "ss06" 1, "ss07" 1, "ss08" 1, "ss09" 1, "ss10" 1, "ss11" 1, "ss12" 1, "ss13" 1, "ss14" 1, "ss15" 1, "ss16" 1, "ss17" 1;
-    @import url('https://fonts.googleapis.com/css2?family=Inter:opsz,wght@16..1000,400;700&display=swap');
+  font-family: 'Inter', Poppins, sans-serif;
+  font-feature-settings: 
+    'liga' 1,      /* Standard ligatures */
+    'dlig' 1,      /* Discretionary ligatures */
+    'hlig' 1,      /* Historical ligatures */
+    'calt' 1,      /* Contextual alternates */
+    'smcp' 1,      /* Small caps */
+    'c2sc' 1,      /* All small caps */
+    'pcap' 1,      /* Petite caps */
+    'c2pc' 1,      /* All petite caps */
+    'onum' 1,      /* Oldstyle numbers */
+    'lnum' 1,      /* Lining numbers */
+    'pnum' 1,      /* Proportional numbers */
+    'tnum' 1,      /* Tabular numbers */
+    'zero' 1,      /* Slashed zero */
+    'frac' 1,      /* Fractions */
+    'subs' 1,      /* Subscript */
+    'sups' 1,      /* Superscript */
+    'ss01' 1,      /* Stylistic set 1 */
+    'ss02' 1,      /* Stylistic set 2 */
+    'ss03' 1,      /* Stylistic set 3 */
+    'ss04' 1,      /* Stylistic set 4 */
+    'ss05' 1,      /* Stylistic set 5 */
+    'ss06' 1,      /* Stylistic set 6 */
+    'ss07' 1,      /* Stylistic set 7 */
+    'ss08' 1,      /* Stylistic set 8 */
+    'ss09' 1,      /* Stylistic set 9 */
+    'ss10' 1,      /* Stylistic set 10 */
+    'salt' 1,      /* Stylistic alternates */
+    'case' 1,      /* Case-sensitive forms */
+    'locl' 1,      /* Localized forms */
+    'kern' 1;      /* Kerning */
 }
 
 .container {
-  displaY: flex;
+  display: flex;
   gap: 2rem;
 }
 

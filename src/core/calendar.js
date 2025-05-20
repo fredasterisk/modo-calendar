@@ -16,6 +16,8 @@ export class NovaCalendar {
 		this.options = {
 			trigger: options.trigger || null,
 			mode: 'range',
+			strictRange2Months: options.strictRange2Months || false, // false par défaut
+			inline: options.inline || false, // false, true, ou string (sélecteur)
 			format:
 				options.format ||
 				((start, end) =>
@@ -39,6 +41,10 @@ export class NovaCalendar {
 			options.plugins.forEach((p) => this.addPlugin(p));
 		}
 		NovaCalendar.instances.push(this);
+		// Appel automatique de attachToTrigger si trigger fourni ou inline
+		if (this.options.inline || this.options.trigger) {
+			this.attachToTrigger(this.options.trigger);
+		}
 	}
 	static parseYMD(str) {
 		const [y, m, d] = str.split('-').map(Number);
@@ -70,41 +76,65 @@ export class NovaCalendar {
 		this.updateDayClasses();
 	}
 	attachToTrigger(selector) {
-		const btn = document.querySelector(selector);
-		if (!btn) return;
+		const isInlineSelector = typeof this.options.inline === 'string';
+		const btn =
+			selector && !isInlineSelector ? document.querySelector(selector) : null;
+		let inlineContainer = null;
+		if (isInlineSelector) {
+			inlineContainer = document.querySelector(this.options.inline);
+			if (!inlineContainer) {
+				console.warn(
+					'[NovaCalendar] Conteneur inline non trouvé:',
+					this.options.inline
+				);
+				return;
+			}
+		}
+		if (!btn && !this.options.inline) return;
 		this.trigger = btn;
 		this.shadowHost = document.createElement('div');
-		document.body.appendChild(this.shadowHost);
+		if (isInlineSelector && inlineContainer) {
+			inlineContainer.appendChild(this.shadowHost);
+		} else {
+			document.body.appendChild(this.shadowHost);
+		}
 		this.shadowRoot = this.shadowHost.attachShadow({ mode: 'open' });
 		this.shadowRoot.innerHTML = `<style>${calendarStyles}</style>`;
 		this.container = document.createElement('div');
 		this.container.className = 'nova-calendar';
-		this.container.style.display = 'none';
 		this.shadowRoot.appendChild(this.container);
 		// Ajout du champ hidden pour le timestamp
 		this.hiddenInput = document.createElement('input');
 		this.hiddenInput.type = 'hidden';
 		this.hiddenInput.className = 'nova-calendar-timestamp';
 		this.shadowRoot.appendChild(this.hiddenInput);
-		btn.addEventListener('click', (e) => {
-			e.stopPropagation();
-			this.showCalendar();
-		});
-		document.addEventListener('click', (e) => {
-			const path = e.composedPath ? e.composedPath() : [];
-			if (
-				!(
-					path.includes(this.container) ||
-					path.includes(this.shadowHost) ||
-					e.target === btn
+
+		if (!this.options.inline) {
+			this.container.style.display = 'none';
+			btn.addEventListener('click', (e) => {
+				e.stopPropagation();
+				this.showCalendar();
+			});
+			document.addEventListener('click', (e) => {
+				const path = e.composedPath ? e.composedPath() : [];
+				if (
+					!(
+						path.includes(this.container) ||
+						path.includes(this.shadowHost) ||
+						e.target === btn
+					)
 				)
-			)
-				this.hideCalendar();
-		});
+					this.hideCalendar();
+			});
+		} else {
+			this.container.style.display = 'block';
+			this.shadowHost.style.position = 'static';
+		}
 		this.renderCalendar();
 		this.updateHiddenInput();
 	}
 	showCalendar() {
+		if (this.options.inline) return;
 		NovaCalendar.instances.forEach((i) => {
 			if (i !== this) i.hideCalendar();
 		});
@@ -116,6 +146,7 @@ export class NovaCalendar {
 		this.plugins?.forEach((p) => p.onCalendarOpen?.(this));
 	}
 	hideCalendar() {
+		if (this.options.inline) return;
 		this.container.style.display = 'none';
 	}
 	/**
@@ -243,12 +274,14 @@ export class NovaCalendar {
 				this.updateDayClasses();
 			});
 
-			const days = this.generateDays(monthDate);
+			// Passe l'index du mois à generateDays
+			const days = this.generateDays(monthDate, i);
 			monthCol.appendChild(days);
 			days.querySelectorAll('.day').forEach((dayEl) => {
 				this.dayElements.push({
 					el: dayEl,
 					date: dayEl._date,
+					monthIndex: i,
 				});
 			});
 		}
@@ -291,7 +324,7 @@ export class NovaCalendar {
 		}
 		this.plugins?.forEach((p) => p.onRender?.(this));
 	}
-	generateDays(date) {
+	generateDays(date, monthIndex) {
 		const daysContainer = document.createElement('div');
 		daysContainer.className = 'days';
 		// NE PAS réinitialiser this.dayElements ici !
@@ -322,6 +355,7 @@ export class NovaCalendar {
 			day.textContent = d;
 			day.className = 'day';
 			day._date = currentDate;
+			day.dataset.monthIndex = monthIndex;
 			const dateTime = currentDate.getTime();
 			if (this.blockedDates && this.blockedDates.includes(dateTime))
 				day.classList.add('blocked');
@@ -332,8 +366,8 @@ export class NovaCalendar {
 			const today = new Date();
 			today.setHours(0, 0, 0, 0);
 			if (currentDate < today) day.classList.add('before-today');
-			// NE PAS push dans this.dayElements ici !
-			day.onclick = () => this.selectDate(currentDate);
+			// Handler modifié pour passer l'index de mois
+			day.onclick = (e) => this.selectDate(currentDate, monthIndex);
 			day.addEventListener('mousedown', (e) => e.stopPropagation());
 			day.addEventListener('click', (e) => e.stopPropagation());
 			day.onmouseover = () => {
@@ -356,7 +390,7 @@ export class NovaCalendar {
 			this.container.classList.remove('invalid-range');
 		}, 600);
 	}
-	selectDate(selected) {
+	selectDate(selected, monthIndex) {
 		const selectedTime = selected.getTime();
 		if (this.mode === 'single') {
 			this.selectedDate = this.startDate = selected;
@@ -388,6 +422,29 @@ export class NovaCalendar {
 		const isNoRangeEnd =
 			this.noRangeEndDates && this.noRangeEndDates.includes(selectedTime);
 		const isBoth = isNoRangeStart && isNoRangeEnd;
+
+		// --- Correction UX range 2 mois optionnelle ---
+		if (
+			this.mode === 'range' &&
+			this.months === 2 &&
+			this.options.strictRange2Months
+		) {
+			if (!this.startDate || (this.startDate && this.endDate)) {
+				// On veut sélectionner le début : uniquement sur le 1er calendrier
+				if (monthIndex !== 0) {
+					this.triggerInvalidRangeFeedback();
+					return;
+				}
+			} else if (this.startDate && !this.endDate) {
+				// On veut sélectionner la fin : uniquement sur le 2e calendrier
+				if (monthIndex !== 1) {
+					this.triggerInvalidRangeFeedback();
+					return;
+				}
+			}
+		}
+		// --- Fin correction UX ---
+
 		// Si la date est à la fois no-range-start et no-range-end, on ne peut jamais la sélectionner (début ou fin)
 		if (isBoth) {
 			this.triggerInvalidRangeFeedback();
@@ -464,7 +521,9 @@ export class NovaCalendar {
 			this.hoverDate = null;
 			this.updateButtonLabel();
 			this.updateDayClasses();
-			this.container.style.display = 'none';
+			if (!this.options.inline) {
+				this.container.style.display = 'none';
+			}
 			this.updateHiddenInput();
 		} else {
 			this.startDate = selected;
