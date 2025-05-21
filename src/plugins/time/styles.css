@@ -1,0 +1,14 @@
+.nova-time-blocks {
+    max-width: 240px;
+    display: flex;
+    gap: .25em;
+    flex-wrap: wrap;
+}
+
+.blocked {
+    opacity: 0.5;
+}
+
+.nova-calendar {
+    background: blue !important;
+}

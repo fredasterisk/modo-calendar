@@ -60,30 +60,35 @@
 				</div>
 			</button>
 		</div>
-		<div id="calendar-inline-demo"></div>
 		<script type="module">
 			const calendarSingle = new NovaCalendar({
 				trigger: '#datepicker-single',
-				months: 1,
 				mode: 'single', // Mode de sélection de date simple
+				plugins: [
+					timePlugin({
+						from: '08:00',
+						to: '18:00',
+						interval: 90,
+						disabledTimes: [
+							['11:00', '12:00'],
+							['14:00', '15:00'],
+						],
+					}),
+				],
 			});
 			const calendarRange = new NovaCalendar({
 				trigger: '#datepicker-range',
 				mode: 'range', // Mode de sélection de plage de dates
-				months: 2,
-				strictRange2Months: false,
 				format: (start, end) => `${start} - ${end}`, // Fonction de format
+				plugins: [
+					monthsPlugin({
+						months: 2,
+					}),
+				],
 			});
 			const calendarMulti = new NovaCalendar({
 				trigger: '#datepicker-multiple',
-				months: 2,
 				mode: 'multiple', // Mode de sélection de dates multiples
-			});
-			const calendarInline = new NovaCalendar({
-				months: 2,
-				mode: 'range',
-				inline: '#calendar-inline-demo', // On passe le sélecteur du conteneur
-				format: (start, end) => `${start} - ${end}`,
 			});
 			// Exemple de blocage de dates :
 			calendarRange.setBlockedDates(['2025-07-04', '2025-07-10', '2025-06-10']);
