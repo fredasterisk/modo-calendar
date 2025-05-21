@@ -21,10 +21,6 @@ export class NovaCalendar {
 		this.date = new Date();
 		this.mode = this.options.mode;
 		this.months = this.options.months || 1;
-		this.startDate = this.endDate = this.hoverDate = null;
-		this.blockedDates = [];
-		this.noRangeStartDates = [];
-		this.noRangeEndDates = [];
 		if (this.mode === 'multiple') this.selectedDates = [];
 		this.plugins = [];
 		[
@@ -48,23 +44,6 @@ export class NovaCalendar {
 		this.endDate = end ? NovaCalendar.parseYMD(end) : null;
 		this.hoverDate = null;
 		this.updateButtonLabel();
-		this.renderCalendar();
-		this.updateDayClasses();
-	}
-	setBlockedDates(dates) {
-		this.blockedDates = dates.map((d) => NovaCalendar.parseYMD(d).getTime());
-		this.renderCalendar();
-		this.updateDayClasses();
-	}
-	setNoRangeStartDates(dates) {
-		this.noRangeStartDates = dates.map((d) =>
-			NovaCalendar.parseYMD(d).getTime()
-		);
-		this.renderCalendar();
-		this.updateDayClasses();
-	}
-	setNoRangeEndDates(dates) {
-		this.noRangeEndDates = dates.map((d) => NovaCalendar.parseYMD(d).getTime());
 		this.renderCalendar();
 		this.updateDayClasses();
 	}
@@ -163,7 +142,7 @@ export class NovaCalendar {
 			});
 			const month = this.date.toLocaleString('default', { month: 'long' });
 			const year = this.date.getFullYear();
-			header.innerHTML = `<span>${month} ${year}</span><span><button class="prev-month">&#8249;</button><button class="next-month">&#8250;</button></span>`;
+			header.innerHTML = `<span>${month} ${year}</span><span><button class=\"prev-month\">&#8249;</button><button class=\"next-month\">&#8250;</button></span>`;
 			this.container.appendChild(header);
 			header.querySelector('.prev-month').addEventListener('click', (e) => {
 				e.stopPropagation();
@@ -269,12 +248,6 @@ export class NovaCalendar {
 			day.appendChild(dayText);
 			day._date = currentDate;
 			day.dataset.monthIndex = monthIndex;
-			const dateTime = currentDate.getTime();
-			if (this.blockedDates?.includes(dateTime)) day.classList.add('blocked');
-			if (this.noRangeStartDates?.includes(dateTime))
-				day.classList.add('no-range-start');
-			if (this.noRangeEndDates?.includes(dateTime))
-				day.classList.add('no-range-end');
 			const today = new Date();
 			today.setHours(0, 0, 0, 0);
 			if (currentDate < today) day.classList.add('before-today');
@@ -326,9 +299,6 @@ export class NovaCalendar {
 		const today = new Date();
 		today.setHours(0, 0, 0, 0);
 		const isBeforeToday = selected < today;
-		const isNoRangeStart = this.noRangeStartDates?.includes(selectedTime);
-		const isNoRangeEnd = this.noRangeEndDates?.includes(selectedTime);
-		const isBoth = isNoRangeStart && isNoRangeEnd;
 		if (this.mode === 'range' && this.months === 2 && this.strictRange2Months) {
 			if (!this.startDate || (this.startDate && this.endDate)) {
 				if (monthIndex !== 0) {
@@ -342,72 +312,18 @@ export class NovaCalendar {
 				}
 			}
 		}
-		if (isBoth) {
-			this.triggerInvalidRangeFeedback();
-			return;
-		}
-		if (
-			(!this.startDate || (this.startDate && this.endDate)) &&
-			isNoRangeStart
-		) {
-			this.triggerInvalidRangeFeedback();
-			return;
-		}
-		if (this.startDate && !this.endDate && isNoRangeEnd) {
-			this.triggerInvalidRangeFeedback();
-			return;
-		}
-		if (
-			this.startDate &&
-			!this.endDate &&
-			selectedTime < this.startDate.getTime() &&
-			isNoRangeStart
-		) {
-			this.triggerInvalidRangeFeedback();
-			return;
-		}
 		if (!this.startDate || (this.startDate && this.endDate)) {
 			this.startDate = selected;
 			this.endDate = this.hoverDate = null;
 			this.updateDayClasses();
 			this.updateHiddenInput();
 		} else if (!isBeforeToday) {
-			let fixedEndDate = selected;
-			const rangeArr = this.getDateRangeArray(this.startDate, selected);
-			let blockedFound = false;
-			for (let i = 1; i < rangeArr.length; i++) {
-				const day = rangeArr[i],
-					dayAtMidnight = new Date(
-						day.getFullYear(),
-						day.getMonth(),
-						day.getDate()
-					),
-					dayTime = dayAtMidnight.getTime();
-				if (this.blockedDates?.includes(dayTime)) {
-					const previousDay = rangeArr[i - 1];
-					fixedEndDate = new Date(
-						previousDay.getFullYear(),
-						previousDay.getMonth(),
-						previousDay.getDate()
-					);
-					blockedFound = true;
-					break;
-				}
-			}
-			if (blockedFound && fixedEndDate.getTime() === this.startDate.getTime()) {
-				this.endDate = null;
-				this.hoverDate = null;
-				this.updateDayClasses();
-				this.triggerInvalidRangeFeedback();
-				this.updateHiddenInput();
-				return;
-			}
 			if (selected.getTime() === this.startDate.getTime()) {
 				this.triggerInvalidRangeFeedback();
 				this.updateHiddenInput();
 				return;
 			}
-			this.endDate = fixedEndDate;
+			this.endDate = selected;
 			this.hoverDate = null;
 			this.updateButtonLabel();
 			this.updateDayClasses();
@@ -430,18 +346,6 @@ export class NovaCalendar {
 				(this.startDate && this.hoverDate ? this.hoverDate : null);
 		this.dayElements.forEach(({ el, date }) => {
 			el.className = 'day';
-			const dateTime = new Date(
-				date.getFullYear(),
-				date.getMonth(),
-				date.getDate()
-			).getTime();
-			const isBlocked = this.blockedDates?.includes(dateTime);
-			const isNoRangeStart = this.noRangeStartDates?.includes(dateTime);
-			const isNoRangeEnd = this.noRangeEndDates?.includes(dateTime);
-			const isBoth = isNoRangeStart && isNoRangeEnd;
-			if (isBlocked) el.classList.add('blocked');
-			if (isNoRangeStart) el.classList.add('no-range-start');
-			if (isNoRangeEnd) el.classList.add('no-range-end');
 			const today = new Date();
 			today.setHours(0, 0, 0, 0);
 			if (date.getTime() < today.getTime()) el.classList.add('before-today');
@@ -456,31 +360,8 @@ export class NovaCalendar {
 				this.selectedDates?.find((d) => d.getTime() === date.getTime())
 			)
 				el.classList.add('selected');
-			let rangeBlocked = false;
-			if (this.startDate && (this.endDate || this.hoverDate)) {
-				const from = new Date(
-						this.startDate.getFullYear(),
-						this.startDate.getMonth(),
-						this.startDate.getDate()
-					),
-					to = new Date(
-						(this.endDate || this.hoverDate).getFullYear(),
-						(this.endDate || this.hoverDate).getMonth(),
-						(this.endDate || this.hoverDate).getDate()
-					),
-					dir = from < to ? 1 : -1;
-				let current = new Date(from);
-				while ((dir > 0 && current <= date) || (dir < 0 && current >= date)) {
-					const t = current.getTime();
-					if (this.blockedDates?.includes(t)) {
-						rangeBlocked = true;
-						break;
-					}
-					current.setDate(current.getDate() + dir);
-				}
-			}
 			if (this.mode === 'range') {
-				if (fromDate && toDate && !rangeBlocked) {
+				if (fromDate && toDate) {
 					const fromTime = new Date(
 							fromDate.getFullYear(),
 							fromDate.getMonth(),
@@ -509,8 +390,7 @@ export class NovaCalendar {
 					this.hoverDate &&
 					fromDate &&
 					this.hoverDate.getTime() > fromDate.getTime() &&
-					date.getTime() === this.hoverDate.getTime() &&
-					!rangeBlocked
+					date.getTime() === this.hoverDate.getTime()
 				)
 					el.classList.add('range-end');
 				if (
@@ -518,8 +398,7 @@ export class NovaCalendar {
 					this.hoverDate &&
 					fromDate &&
 					this.hoverDate.getTime() < fromDate.getTime() &&
-					date.getTime() === this.hoverDate.getTime() &&
-					!rangeBlocked
+					date.getTime() === this.hoverDate.getTime()
 				)
 					el.classList.add('range-start');
 				if (fromDate && !toDate && date.getTime() === fromDate.getTime()) {

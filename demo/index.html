@@ -84,18 +84,17 @@
 					monthsPlugin({
 						months: 2,
 					}),
+					lockingPlugin({
+						blockedDates: ['2025-05-30', '2025-05-31'],
+						noRangeStartDates: ['2025-05-22'],
+						noRangeEndDates: ['2025-05-23'],
+					}),
 				],
 			});
 			const calendarMulti = new NovaCalendar({
 				trigger: '#datepicker-multiple',
 				mode: 'multiple', // Mode de sélection de dates multiples
 			});
-			// Exemple de blocage de dates :
-			calendarRange.setBlockedDates(['2025-07-04', '2025-07-10', '2025-06-10']);
-			calendarRange.setBlockedDates(['2025-07-04', '2025-07-10', '2025-06-10']);
-			// Exemple de présélection d'une plage
-			calendarRange.setNoRangeStartDates(['2025-05-24', '2025-05-27']);
-			calendarRange.setNoRangeEndDates(['2025-05-27', '2025-05-29']);
 		</script>
 	</body>
 </html>

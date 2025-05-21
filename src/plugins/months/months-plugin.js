@@ -208,10 +208,7 @@ export function monthsPlugin(options = {}) {
 					multiList.appendChild(empty);
 				}
 			}
-			calendar.plugins?.forEach((p) => {
-				if (p.name !== 'months' && typeof p.onRender === 'function')
-					p.onRender(calendar);
-			});
+			// Correction : NE PAS rappeler onRender des autres plugins ici (évite la boucle infinie)
 		},
 	};
 }
