@@ -26,7 +26,12 @@ Or simply copy the `src/` folder into your project.
 ## Usage
 
 ```js
-import { NovaCalendar, timePlugin, monthsPlugin } from 'nova-calendar';
+import {
+	NovaCalendar,
+	timePlugin,
+	monthsPlugin,
+	lockPlugin,
+} from 'nova-calendar';
 
 const calendar = new NovaCalendar({
 	trigger: '#calendar-btn',
@@ -34,6 +39,7 @@ const calendar = new NovaCalendar({
 	plugins: [
 		monthsPlugin({ months: 2 }),
 		timePlugin({ from: '08:00', to: '18:00' }),
+		lockPlugin({ blockedDates: ['2025-06-20'] }),
 	],
 });
 ```
@@ -46,6 +52,7 @@ Or use directly in HTML:
 	const calendar = new NovaCalendar({
 		trigger: '#calendar-btn',
 		mode: 'single',
+		plugins: [lockPlugin({ blockedDates: ['2025-06-20'] })],
 	});
 </script>
 ```
@@ -54,8 +61,53 @@ Or use directly in HTML:
 
 - **monthsPlugin**: Display multiple months side by side.
 - **timePlugin**: Add time block selection below the calendar.
+- **lockPlugin**: Gère le blocage de dates, l'interdiction de début/fin de plage, et fournit un feedback visuel robuste pour toutes les sélections interdites.
 
-Each plugin injects its own CSS into the Shadow DOM for style isolation.
+### lockPlugin
+
+Le plugin `lockPlugin` permet de :
+
+- Bloquer certaines dates (empêche toute sélection)
+- Interdire qu'une date soit le début d'une plage (`noRangeStartDates`)
+- Interdire qu'une date soit la fin d'une plage (`noRangeEndDates`)
+- Fournir un retour visuel immédiat (CSS `.blocked`, `.no-range-start`, `.no-range-end`, `.denied`)
+- Gérer tous les cas de sélection (simple, plage, multiples, hover, edge cases)
+- Fonctionne en UTC pour éviter les problèmes de fuseau
+
+**Options** :
+
+```js
+lockPlugin({
+	blockedDates: ['2025-06-20', '2025-06-24'], // Dates interdites (format YYYY-MM-DD ou timestamp)
+	noRangeStartDates: ['2025-06-22'], // Interdit de commencer une plage sur ces dates
+	noRangeEndDates: ['2025-06-23'], // Interdit de finir une plage sur ces dates
+});
+```
+
+**Exemple d'utilisation** :
+
+```js
+import { NovaCalendar, lockPlugin } from 'nova-calendar';
+const calendar = new NovaCalendar({
+	trigger: '#calendar-btn',
+	mode: 'range',
+	plugins: [
+		lockPlugin({
+			blockedDates: ['2025-06-20', '2025-06-24'],
+			noRangeStartDates: ['2025-06-22'],
+			noRangeEndDates: ['2025-06-23'],
+		}),
+	],
+});
+```
+
+**API dynamique** :
+
+- `calendar.setBlockedDates(dates)`
+- `calendar.setNoRangeStartDates(dates)`
+- `calendar.setNoRangeEndDates(dates)`
+
+Chaque modification met à jour l'affichage et bloque les sélections interdites en temps réel.
 
 ## API
 
@@ -72,7 +124,7 @@ Each plugin injects its own CSS into the Shadow DOM for style isolation.
 - `mode`: `'single' | 'range' | 'multiple'`
 - `inline`: `false` or CSS selector for inline mode.
 - `format`: function for display formatting.
-- `plugins`: array of plugins (e.g. `monthsPlugin`, `timePlugin`)
+- `plugins`: array of plugins (e.g. `monthsPlugin`, `timePlugin`, `lockPlugin`)
 
 ## Development
 

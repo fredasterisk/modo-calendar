@@ -1,9 +1,9 @@
-// src/plugins/locking/locking-plugin.js
+// src/plugins/lock/lock-plugin.js
 // Plugin to handle blocked dates, no-range-start, and no-range-end for NovaCalendar
 
 export function lockPlugin(options = {}) {
 	return {
-		name: 'locking',
+		name: 'lock',
 		options,
 		onInit(calendar) {
 			// Setters for lock states
@@ -187,17 +187,17 @@ export function lockPlugin(options = {}) {
 
 			// Store initial options for later (DOM not ready)
 			const opts =
-				calendar.options.plugins?.find((p) => p && p.name === 'locking')
+				calendar.options.plugins?.find((p) => p && p.name === 'lock')
 					?.options || {};
-			calendar._lockingInitOptions = opts;
+			calendar._lockInitOptions = opts;
 			calendar.blockedDates = [];
 			calendar.noRangeStartDates = [];
 			calendar.noRangeEndDates = [];
 		},
 		onRender(calendar) {
 			// Apply lock options on first render if needed
-			if (calendar._lockingInitOptions) {
-				const opts = calendar._lockingInitOptions;
+			if (calendar._lockInitOptions) {
+				const opts = calendar._lockInitOptions;
 				if (opts.blockedDates)
 					calendar.blockedDates = opts.blockedDates.map((d) =>
 						typeof d === 'number' ? d : lockPlugin.parseYMD(d).getTime()
@@ -210,7 +210,7 @@ export function lockPlugin(options = {}) {
 					calendar.noRangeEndDates = opts.noRangeEndDates.map((d) =>
 						typeof d === 'number' ? d : lockPlugin.parseYMD(d).getTime()
 					);
-				delete calendar._lockingInitOptions;
+				delete calendar._lockInitOptions;
 				calendar.updateDayClasses && calendar.updateDayClasses();
 				return;
 			}

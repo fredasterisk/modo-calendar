@@ -7,9 +7,9 @@ import { timePlugin } from './plugins/time/time-plugin.js';
 window.timePlugin = timePlugin;
 
 import { monthsPlugin } from './plugins/months/months-plugin.js';
-import { lockingPlugin } from './plugins/locking/locking-plugin.js';
+import { lockPlugin } from './plugins/lock/lock-plugin.js';
 
 window.monthsPlugin = monthsPlugin;
-window.lockingPlugin = lockingPlugin;
+window.lockPlugin = lockPlugin;
 
-export { timePlugin, monthsPlugin, lockingPlugin };
+export { timePlugin, monthsPlugin, lockPlugin };
