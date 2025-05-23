@@ -1,7 +1,19 @@
 import styles from './styles.css?inline';
 
-// Squelette minimal pour débloquer le build
+/**
+ * Plugin de sélection horaire pour le calendrier
+ *
+ * @param {Object} options
+ * @param {boolean} [options.multiple=false] Permet la sélection de plusieurs blocs horaires par date
+ * @param {string} [options.from='08:00'] Heure de début des blocs horaires
+ * @param {string} [options.to='16:00'] Heure de fin des blocs horaires
+ * @param {number} [options.interval=60] Intervalle en minutes entre les blocs horaires
+ * @param {Array<string>} [options.disabledTimes] Liste des heures bloquées (format 'HH:MM')
+ * @param {function} [options.isTimeBlocked] Fonction personnalisée pour déterminer si un horaire est bloqué
+ * @returns {Object} Plugin pour le calendrier
+ */
 export function timePlugin(options = {}) {
+	const allowMultiple = !!options.multiple; // options.multiple : true pour activer la sélection multiple de blocs
 	return {
 		name: 'timePlugin',
 		options,
@@ -18,10 +30,9 @@ export function timePlugin(options = {}) {
 					calendar.shadowRoot.appendChild(style);
 				}
 			};
-			console.log(styles);
 			injectStyle(styles);
 			calendar._timePluginState = {
-				selectedTime: null,
+				selectedTimes: {}, // { timestamp: [blocs] }
 				blocks: [],
 			};
 		},
@@ -66,7 +77,7 @@ export function timePlugin(options = {}) {
 					container.appendChild(timeBlockDiv);
 				}
 			} else {
-				// Si le bloc existe déjà, on le replace juste après .days si besoin
+				// Si le bloc existe déjà, on lereplace juste après .days si besoin
 				const days = container.querySelector('.days');
 				if (days && days.nextSibling !== timeBlockDiv) {
 					container.insertBefore(timeBlockDiv, days.nextSibling);
@@ -108,11 +119,77 @@ export function timePlugin(options = {}) {
 				btn.textContent = blockKey;
 				btn.disabled = !!isBlocked;
 				btn.onclick = () => {
-					calendar._timePluginState.selectedTime = blockKey;
-					[...timeBlockDiv.querySelectorAll('.nova-time-block')].forEach((b) =>
-						b.classList.remove('selected')
-					);
-					btn.classList.add('selected');
+					const multiple = !!options.multiple;
+					const mode = calendar.mode;
+					let val = {};
+					if (calendar.hiddenInput && calendar.hiddenInput.value) {
+						try {
+							val = JSON.parse(calendar.hiddenInput.value || '{}');
+						} catch (e) {}
+					}
+
+					// Helper pour obtenir la clé date (timestamp UTC à minuit)
+					const getDateKey = (d) => {
+						const dt = new Date(d);
+						dt.setUTCHours(0, 0, 0, 0);
+						return dt.getTime();
+					};
+
+					if (mode === 'range') {
+						// Deux dates : startDate et endDate
+						const [start, end] = [calendar.startDate, calendar.endDate];
+						if (!start || !end) return;
+						val.times = val.times || {};
+						const startKey = getDateKey(start);
+						const endKey = getDateKey(end);
+						// Sélectionne pour start ou end selon le bouton cliqué (toggle)
+						const isStart =
+							!val.times[startKey] || val.times[startKey].length === 0;
+						if (isStart) {
+							val.times[startKey] = [blockKey];
+						} else {
+							val.times[endKey] = [blockKey];
+						}
+						// UI: highlight
+						[...timeBlockDiv.querySelectorAll('.nova-time-block')].forEach(
+							(b) => b.classList.remove('selected')
+						);
+						// Marque le bouton sélectionné
+						btn.classList.add('selected');
+					} else {
+						// single ou multiple
+						let dates = [];
+						if (mode === 'single') {
+							dates = [calendar.selectedDate];
+						} else if (mode === 'multiple') {
+							dates = calendar.selectedDates || [];
+						}
+						val.times = val.times || {};
+						// Pour chaque date sélectionnée, toggle le bloc d'heure
+						dates.forEach((d) => {
+							const key = getDateKey(d);
+							val.times[key] = val.times[key] || [];
+							if (multiple) {
+								// toggle: ajoute ou retire
+								const idx = val.times[key].indexOf(blockKey);
+								if (idx === -1) {
+									val.times[key].push(blockKey);
+									btn.classList.add('selected');
+								} else {
+									val.times[key].splice(idx, 1);
+									btn.classList.remove('selected');
+								}
+							} else {
+								// single: un seul bloc par date
+								val.times[key] = [blockKey];
+								[...timeBlockDiv.querySelectorAll('.nova-time-block')].forEach(
+									(b) => b.classList.remove('selected')
+								);
+								btn.classList.add('selected');
+							}
+						});
+					}
+					calendar.hiddenInput.value = JSON.stringify(val);
 					calendar.plugins?.forEach((p) =>
 						p.onTimeSelected?.(blockKey, calendar)
 					);
@@ -122,10 +199,89 @@ export function timePlugin(options = {}) {
 				cur = next;
 			}
 			calendar._timePluginState.blocks = blocks;
+
+			// Ajout : sur chaque update, on synchronise la sélection UI selon val.times
+			if (calendar.hiddenInput && calendar.hiddenInput.value) {
+				try {
+					const val = JSON.parse(calendar.hiddenInput.value || '{}');
+					if (val.times) {
+						const getDateKey = (d) => {
+							const dt = new Date(d);
+							dt.setUTCHours(0, 0, 0, 0);
+							return dt.getTime();
+						};
+						let dates = [];
+						if (calendar.mode === 'range') {
+							if (calendar.startDate) dates.push(calendar.startDate);
+							if (calendar.endDate) dates.push(calendar.endDate);
+						} else if (calendar.mode === 'single') {
+							if (calendar.selectedDate) dates.push(calendar.selectedDate);
+						} else if (calendar.mode === 'multiple') {
+							if (calendar.selectedDates) dates = calendar.selectedDates;
+						}
+						[...timeBlockDiv.querySelectorAll('.nova-time-block')].forEach(
+							(b) => {
+								b.classList.remove('selected');
+								const blockKey = b.textContent;
+								dates.forEach((d) => {
+									const key = getDateKey(d);
+									if (val.times[key] && val.times[key].includes(blockKey)) {
+										b.classList.add('selected');
+									}
+								});
+							}
+						);
+					}
+				} catch (e) {}
+			}
 		},
 		onDateSelected(date, calendar) {
-			// Peut-être vider la sélection de l'heure si la date change
-			calendar._timePluginState.selectedTime = null;
+			// En mode multiple, on ne supprime que les blocs horaires des dates désélectionnées
+			if (calendar.mode === 'multiple' && calendar.selectedDates) {
+				if (calendar.hiddenInput && calendar.hiddenInput.value) {
+					try {
+						const val = JSON.parse(calendar.hiddenInput.value || '{}');
+						if (val.times) {
+							const getDateKey = (d) => {
+								const dt = new Date(d);
+								dt.setUTCHours(0, 0, 0, 0);
+								return dt.getTime();
+							};
+							const selectedKeys = new Set(
+								calendar.selectedDates.map(getDateKey)
+							);
+							for (const key of Object.keys(val.times)) {
+								if (!selectedKeys.has(Number(key))) {
+									delete val.times[key];
+								}
+							}
+							// Si plus aucune date n'a de bloc, on supprime la clé times
+							if (Object.keys(val.times).length === 0) delete val.times;
+							calendar.hiddenInput.value = JSON.stringify(val);
+						}
+					} catch (e) {}
+				}
+				return;
+			}
+			// Pour single/range, comportement inchangé (reset)
+			if (calendar.mode === 'single' && calendar.selectedDate) {
+				calendar._timePluginState.selectedTimes = {};
+			}
+			if (calendar.mode === 'range') {
+				calendar._timePluginState.selectedTimes = {};
+			}
+			// Nettoie la clé times du hidden input pour single/range
+			if (
+				(calendar.mode === 'single' || calendar.mode === 'range') &&
+				calendar.hiddenInput &&
+				calendar.hiddenInput.value
+			) {
+				try {
+					const val = JSON.parse(calendar.hiddenInput.value || '{}');
+					delete val.times;
+					calendar.hiddenInput.value = JSON.stringify(val);
+				} catch (e) {}
+			}
 		},
 	};
 }
