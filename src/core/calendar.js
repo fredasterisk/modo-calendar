@@ -23,7 +23,6 @@ export class NovaCalendar {
 		this.months = this.options.months || 1;
 		if (this.mode === 'multiple') this.selectedDates = [];
 		this.plugins = [];
-		// Store initial label value for reset
 		this._initialLabelValue = null;
 		[
 			...(this.constructor.globalPlugins || []),
@@ -51,27 +50,22 @@ export class NovaCalendar {
 	}
 
 	attachToTrigger(selector) {
-		const isInlineSelector = typeof this.options.inline === 'string';
-		const btn =
-			selector && !isInlineSelector ? document.querySelector(selector) : null;
-		let inlineContainer = null;
-		if (isInlineSelector) {
-			inlineContainer = document.querySelector(this.options.inline);
-			if (!inlineContainer) {
-				console.warn(
-					'[NovaCalendar] Conteneur inline non trouvé:',
-					this.options.inline
-				);
-				return;
-			}
-		}
+		const isInline = typeof this.options.inline === 'string';
+		const btn = selector && !isInline ? document.querySelector(selector) : null;
+		const inlineContainer = isInline
+			? document.querySelector(this.options.inline)
+			: null;
+		if (isInline && !inlineContainer)
+			return console.warn(
+				'[NovaCalendar] Inline container not found:',
+				this.options.inline
+			);
 		if (!btn && !this.options.inline) return;
 		this.trigger = btn;
 		this.shadowHost = document.createElement('div');
-		(isInlineSelector && inlineContainer
-			? inlineContainer
-			: document.body
-		).appendChild(this.shadowHost);
+		(isInline && inlineContainer ? inlineContainer : document.body).appendChild(
+			this.shadowHost
+		);
 		this.shadowRoot = this.shadowHost.attachShadow({ mode: 'open' });
 		this.shadowRoot.innerHTML = `<style>${calendarStyles}</style>`;
 		this.container = Object.assign(document.createElement('div'), {
@@ -106,11 +100,9 @@ export class NovaCalendar {
 		}
 		this.renderCalendar();
 		this.updateHiddenInput();
-		// Store initial label value after first render
 		let labelEl = this.trigger ? this.trigger.querySelector('.dates') : null;
-		if (!labelEl && this.container) {
+		if (!labelEl && this.container)
 			labelEl = this.container.querySelector('.dates');
-		}
 		if (labelEl) this._initialLabelValue = labelEl.textContent;
 	}
 
@@ -128,6 +120,7 @@ export class NovaCalendar {
 		});
 		this.plugins?.forEach((p) => p.onCalendarOpen?.(this));
 	}
+
 	hideCalendar() {
 		if (this.options.inline) return;
 		this.container.style.display = 'none';
@@ -150,7 +143,7 @@ export class NovaCalendar {
 			});
 			const month = this.date.toLocaleString('default', { month: 'long' });
 			const year = this.date.getFullYear();
-			header.innerHTML = `<span>${month} ${year}</span><span><button class=\"prev-month\">&#8249;</button><button class=\"next-month\">&#8250;</button></span>`;
+			header.innerHTML = `<span>${month} ${year}</span><span><button class="prev-month">&#8249;</button><button class="next-month">&#8250;</button></span>`;
 			this.container.appendChild(header);
 			header.querySelector('.prev-month').addEventListener('click', (e) => {
 				e.stopPropagation();
@@ -175,17 +168,18 @@ export class NovaCalendar {
 			const days = this.generateDays(this.date, 0);
 			this.container.appendChild(days);
 			this.dayElements = [];
-			days.querySelectorAll('.day').forEach((dayEl) => {
-				this.dayElements.push({ el: dayEl, date: dayEl._date, monthIndex: 0 });
-			});
+			days
+				.querySelectorAll('.day')
+				.forEach((dayEl) =>
+					this.dayElements.push({ el: dayEl, date: dayEl._date, monthIndex: 0 })
+				);
 			if (this.mode === 'multiple') {
-				let multiList = this.container.querySelector('.multi-list');
-				if (!multiList) {
-					multiList = Object.assign(document.createElement('div'), {
+				let multiList =
+					this.container.querySelector('.multi-list') ||
+					Object.assign(document.createElement('div'), {
 						className: 'multi-list',
 					});
-					this.container.appendChild(multiList);
-				}
+				if (!multiList.parentNode) this.container.appendChild(multiList);
 				multiList.innerHTML = '';
 				if (this.selectedDates?.length > 0) {
 					[...this.selectedDates]
@@ -327,18 +321,16 @@ export class NovaCalendar {
 			this.updateHiddenInput();
 		} else if (!isBeforeToday) {
 			if (selected.getTime() === this.startDate.getTime()) {
-				// Reset selection if clicking the same date as startDate
-				this.startDate = null;
-				this.endDate = null;
-				this.hoverDate = null;
+				this.startDate = this.endDate = this.hoverDate = null;
 				this.updateDayClasses();
 				this.updateHiddenInput();
 				this.updateButtonLabel();
-				// Force label reset if no button (inline mode)
-				if (!this.trigger && this.container) {
-					const labelEl = this.container.querySelector('.dates');
-					if (labelEl) labelEl.textContent = this.options.placeholder || '';
-				}
+				let labelEl = this.trigger
+					? this.trigger.querySelector('.dates')
+					: null;
+				if (!labelEl && this.container)
+					labelEl = this.container.querySelector('.dates');
+				if (labelEl) labelEl.textContent = this._initialLabelValue || '';
 				return;
 			}
 			this.endDate = selected;
@@ -442,7 +434,7 @@ export class NovaCalendar {
 
 	updateButtonLabel() {
 		const btn = this.trigger;
-		let text = this.options.placeholder || 'Choisir...';
+		let text = this.options.placeholder || '';
 		if (this.mode === 'multiple' && this.selectedDates?.length > 0)
 			text = [...this.selectedDates]
 				.sort((a, b) => a - b)
@@ -459,22 +451,17 @@ export class NovaCalendar {
 			);
 		} else if (this.startDate)
 			text = this.options.format(this.formatDisplay(this.startDate), null);
-		// Always update the label, whether in button or inline
 		let labelEl = btn ? btn.querySelector('.dates') : null;
-		if (!labelEl && this.container) {
+		if (!labelEl && this.container)
 			labelEl = this.container.querySelector('.dates');
-		}
-		// If no selection, restore initial label value
 		if (labelEl) {
 			if (
 				!this.startDate &&
 				!this.endDate &&
 				(!this.selectedDates || this.selectedDates.length === 0)
-			) {
+			)
 				labelEl.textContent = this._initialLabelValue || '';
-			} else {
-				labelEl.textContent = text;
-			}
+			else labelEl.textContent = text;
 		}
 		this.updateHiddenInput();
 	}
