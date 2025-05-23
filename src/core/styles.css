@@ -40,6 +40,7 @@
   line-height: 1;
 }
 
+/* Header */
 .header {
   display: flex;
   justify-content: end;
@@ -90,6 +91,13 @@ button:is(.prev-month, .next-month):hover {
 }
 
 /* Add effect on days */
+
+.day-text {
+  position: relative;
+  z-index: 10;
+  user-select: none;
+}
+
 .day.before-today {
   opacity: 0.5;
   pointer-events: none;
@@ -98,6 +106,10 @@ button:is(.prev-month, .next-month):hover {
 .day:not(.in-range, .selected):hover {
   border-radius: 99em;
   background: #f0f0f0;
+}
+
+.day:active {
+  background-size: 90%;
 }
 
 .day.selected {
@@ -125,7 +137,7 @@ button:is(.prev-month, .next-month):hover {
 }
 
 .day.range-start {
-  background: #007bff;
+  background-color: #007bff;
   color: #fff;
 }
 
