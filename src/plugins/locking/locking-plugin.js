@@ -6,7 +6,7 @@ export function lockingPlugin(options = {}) {
 		name: 'locking',
 		options,
 		onInit(calendar) {
-			// Définir les setters d'abord
+			// Setters for lock states
 			calendar.setBlockedDates = (dates) => {
 				calendar.blockedDates = dates.map(getUTCMidnightTimestamp);
 				calendar.renderCalendar();
@@ -23,7 +23,7 @@ export function lockingPlugin(options = {}) {
 				calendar.updateDayClasses();
 			};
 
-			// Surcharge updateDayClasses pour ajouter les classes de blocage et gérer le hover
+			// Override updateDayClasses to add lock classes and handle hover
 			const originalUpdateDayClasses =
 				calendar.updateDayClasses?.bind(calendar) || (() => {});
 			calendar.updateDayClasses = function () {
@@ -31,26 +31,18 @@ export function lockingPlugin(options = {}) {
 					toDate =
 						this.endDate ||
 						(this.startDate && this.hoverDate ? this.hoverDate : null);
-				console.log('updateDayClasses (lockingPlugin) called', {
-					fromDate,
-					toDate,
-					hoverDate: this.hoverDate,
-					mode: this.mode,
-					dayElements: this.dayElements?.length,
-				});
 				const blocked = (this.blockedDates || []).map(getUTCMidnightTimestamp);
 				const noStart = (this.noRangeStartDates || []).map(
 					getUTCMidnightTimestamp
 				);
 				const noEnd = (this.noRangeEndDates || []).map(getUTCMidnightTimestamp);
-				console.log('blocked array:', blocked);
 				originalUpdateDayClasses();
 				if (!this.dayElements) return;
-				// Nettoyage des classes denied
+				// Remove denied classes
 				this.dayElements.forEach(({ el }) => {
 					el.classList.remove('denied');
 				});
-				// Calculer la limite de hover (ne pas dépasser une date bloquée)
+				// Limit hover range to not exceed a blocked date
 				if (
 					this.mode === 'range' &&
 					fromDate &&
@@ -72,7 +64,6 @@ export function lockingPlugin(options = {}) {
 						}
 						current.setDate(current.getDate() + dir);
 					}
-					// Si hoverLimit a changé, on limite le toDate
 					toDate = hoverLimit;
 				}
 				this.dayElements.forEach(({ el, date }) => {
@@ -81,7 +72,7 @@ export function lockingPlugin(options = {}) {
 					if (noStart.includes(t)) el.classList.add('no-range-start');
 					if (noEnd.includes(t)) el.classList.add('no-range-end');
 				});
-				// Ajout d'une passe pour denied sur hover refusé
+				// Add denied class for denied hover
 				if (this.mode === 'range' && fromDate && toDate && !this.endDate) {
 					const fromTime = getUTCMidnightTimestamp(fromDate),
 						toTime = getUTCMidnightTimestamp(toDate),
@@ -101,25 +92,7 @@ export function lockingPlugin(options = {}) {
 						(dir < 0 && current.getTime() >= toTime)
 					) {
 						const tt = current.getTime();
-						console.log(
-							'Test denied:',
-							current,
-							'tt:',
-							tt,
-							'blocked:',
-							blocked.includes(tt),
-							'fromTime:',
-							fromTime,
-							'toTime:',
-							toTime,
-							'blocked array:',
-							blocked
-						);
 						if (blocked.includes(tt) && tt !== fromTime && tt !== toTime) {
-							console.log(
-								'-> Date bloquée trouvée dans la plage, denied = true',
-								current
-							);
 							denied = true;
 							break;
 						}
@@ -130,7 +103,6 @@ export function lockingPlugin(options = {}) {
 							const t = getUTCMidnightTimestamp(date);
 							if (t >= minTime && t <= maxTime && !blocked.includes(t)) {
 								el.classList.add('denied');
-								console.log('Ajout de .denied sur', el, date, 't:', t);
 								el.style.animation = 'none';
 								el.offsetHeight;
 								el.style.animation = null;
@@ -140,50 +112,49 @@ export function lockingPlugin(options = {}) {
 				}
 			};
 
-			// Surcharge selectDate pour empêcher la sélection sur les jours bloqués/no-range
+			// Override selectDate to prevent selection on locked days
 			const originalSelectDate = calendar.selectDate?.bind(calendar);
 			calendar.selectDate = function (selected, monthIndex) {
 				const t = getUTCMidnightTimestamp(selected);
-				if (this.blockedDates?.includes(t)) {
-					this.triggerInvalidRangeFeedback &&
-						this.triggerInvalidRangeFeedback();
-					return;
-				}
-				// Empêcher de commencer sur un no-range-start (toujours interdit)
+
+				const noStart = this.noRangeStartDates || [];
+				const noEnd = this.noRangeEndDates || [];
+
+				// Range selection start
 				if (
 					this.mode === 'range' &&
-					(!this.startDate || (this.startDate && this.endDate)) &&
-					this.noRangeStartDates?.includes(t)
+					(!this.startDate || (this.startDate && this.endDate))
 				) {
-					this.triggerInvalidRangeFeedback &&
-						this.triggerInvalidRangeFeedback();
-					return;
+					if (noStart.includes(t)) {
+						this.triggerInvalidRangeFeedback &&
+							this.triggerInvalidRangeFeedback();
+						return;
+					}
 				}
-				// Empêcher de finir sur un no-range-end (toujours interdit)
-				if (
-					this.mode === 'range' &&
-					this.startDate &&
-					!this.endDate &&
-					this.noRangeEndDates?.includes(t)
-				) {
-					this.triggerInvalidRangeFeedback &&
-						this.triggerInvalidRangeFeedback();
-					return;
-				}
-				// Empêcher de finir sur un no-range-start UNIQUEMENT si sélection inversée (t < startDate)
-				if (
-					this.mode === 'range' &&
-					this.startDate &&
-					!this.endDate &&
-					this.noRangeStartDates?.includes(t) &&
-					t < this.startDate.getTime()
-				) {
-					this.triggerInvalidRangeFeedback &&
-						this.triggerInvalidRangeFeedback();
-					return;
-				}
-				// Empêcher de valider un range qui contient une date bloquée
+
+				// Range selection end
 				if (this.mode === 'range' && this.startDate && !this.endDate) {
+					const startT = getUTCMidnightTimestamp(this.startDate);
+					if (noEnd.includes(t)) {
+						this.triggerInvalidRangeFeedback &&
+							this.triggerInvalidRangeFeedback();
+						return;
+					}
+					if (
+						(noStart.includes(startT) && noEnd.includes(t)) ||
+						(noEnd.includes(startT) && noStart.includes(t))
+					) {
+						this.triggerInvalidRangeFeedback &&
+							this.triggerInvalidRangeFeedback();
+						return;
+					}
+					// Prevent reverse selection ending on no-range-start
+					if (noStart.includes(t) && t < startT) {
+						this.triggerInvalidRangeFeedback &&
+							this.triggerInvalidRangeFeedback();
+						return;
+					}
+					// Prevent range containing a blocked date
 					const from = new Date(
 						this.startDate.getFullYear(),
 						this.startDate.getMonth(),
@@ -197,11 +168,11 @@ export function lockingPlugin(options = {}) {
 					const dir = from < to ? 1 : -1;
 					let current = new Date(from);
 					while ((dir > 0 && current <= to) || (dir < 0 && current >= to)) {
-						const tt = current.getTime();
+						const tt = getUTCMidnightTimestamp(current);
 						if (
 							this.blockedDates?.includes(tt) &&
-							tt !== from.getTime() &&
-							tt !== to.getTime()
+							tt !== getUTCMidnightTimestamp(from) &&
+							tt !== getUTCMidnightTimestamp(to)
 						) {
 							this.triggerInvalidRangeFeedback &&
 								this.triggerInvalidRangeFeedback();
@@ -210,10 +181,11 @@ export function lockingPlugin(options = {}) {
 						current.setDate(current.getDate() + dir);
 					}
 				}
+
 				return originalSelectDate(selected, monthIndex);
 			};
 
-			// Stocker les options à appliquer pour plus tard (DOM pas prêt)
+			// Store initial options for later (DOM not ready)
 			const opts =
 				calendar.options.plugins?.find((p) => p && p.name === 'locking')
 					?.options || {};
@@ -223,7 +195,7 @@ export function lockingPlugin(options = {}) {
 			calendar.noRangeEndDates = [];
 		},
 		onRender(calendar) {
-			// Appliquer les options de blocage au premier rendu si besoin
+			// Apply lock options on first render if needed
 			if (calendar._lockingInitOptions) {
 				const opts = calendar._lockingInitOptions;
 				if (opts.blockedDates)
@@ -239,19 +211,18 @@ export function lockingPlugin(options = {}) {
 						typeof d === 'number' ? d : lockingPlugin.parseYMD(d).getTime()
 					);
 				delete calendar._lockingInitOptions;
-				// Forcer un update visuel après application (sans boucle infinie)
 				calendar.updateDayClasses && calendar.updateDayClasses();
 				return;
 			}
 			calendar.updateDayClasses && calendar.updateDayClasses();
 		},
 		onDateSelected(selected, calendar) {
-			// Optionally, could add feedback here
+			// Optional: add feedback here
 		},
 	};
 }
 
-// Helper pour obtenir le timestamp UTC minuit d'une date ou timestamp ou string
+// Returns UTC midnight timestamp for a date, timestamp, or string
 function getUTCMidnightTimestamp(d) {
 	if (typeof d === 'number') {
 		const date = new Date(d);
@@ -271,8 +242,8 @@ function getUTCMidnightTimestamp(d) {
 	return d;
 }
 
-// Helper for YMD parsing
+// Parses YMD string as UTC date
 lockingPlugin.parseYMD = function (str) {
 	const [y, m, d] = str.split('-').map(Number);
-	return new Date(y, m - 1, d);
+	return new Date(Date.UTC(y, m - 1, d));
 };

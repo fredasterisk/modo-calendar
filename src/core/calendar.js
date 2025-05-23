@@ -23,6 +23,8 @@ export class NovaCalendar {
 		this.months = this.options.months || 1;
 		if (this.mode === 'multiple') this.selectedDates = [];
 		this.plugins = [];
+		// Store initial label value for reset
+		this._initialLabelValue = null;
 		[
 			...(this.constructor.globalPlugins || []),
 			...(this.options.plugins || []),
@@ -104,6 +106,12 @@ export class NovaCalendar {
 		}
 		this.renderCalendar();
 		this.updateHiddenInput();
+		// Store initial label value after first render
+		let labelEl = this.trigger ? this.trigger.querySelector('.dates') : null;
+		if (!labelEl && this.container) {
+			labelEl = this.container.querySelector('.dates');
+		}
+		if (labelEl) this._initialLabelValue = labelEl.textContent;
 	}
 
 	showCalendar() {
@@ -319,8 +327,18 @@ export class NovaCalendar {
 			this.updateHiddenInput();
 		} else if (!isBeforeToday) {
 			if (selected.getTime() === this.startDate.getTime()) {
-				this.triggerInvalidRangeFeedback();
+				// Reset selection if clicking the same date as startDate
+				this.startDate = null;
+				this.endDate = null;
+				this.hoverDate = null;
+				this.updateDayClasses();
 				this.updateHiddenInput();
+				this.updateButtonLabel();
+				// Force label reset if no button (inline mode)
+				if (!this.trigger && this.container) {
+					const labelEl = this.container.querySelector('.dates');
+					if (labelEl) labelEl.textContent = this.options.placeholder || '';
+				}
 				return;
 			}
 			this.endDate = selected;
@@ -329,6 +347,7 @@ export class NovaCalendar {
 			this.updateDayClasses();
 			if (!this.options.inline) this.container.style.display = 'none';
 			this.updateHiddenInput();
+			return;
 		} else {
 			this.startDate = selected;
 			this.endDate = this.hoverDate = null;
@@ -423,7 +442,7 @@ export class NovaCalendar {
 
 	updateButtonLabel() {
 		const btn = this.trigger;
-		let text = this.options.placeholder;
+		let text = this.options.placeholder || 'Choisir...';
 		if (this.mode === 'multiple' && this.selectedDates?.length > 0)
 			text = [...this.selectedDates]
 				.sort((a, b) => a - b)
@@ -440,8 +459,23 @@ export class NovaCalendar {
 			);
 		} else if (this.startDate)
 			text = this.options.format(this.formatDisplay(this.startDate), null);
-		const labelEl = btn ? btn.querySelector('.dates') : null;
-		if (labelEl) labelEl.textContent = text;
+		// Always update the label, whether in button or inline
+		let labelEl = btn ? btn.querySelector('.dates') : null;
+		if (!labelEl && this.container) {
+			labelEl = this.container.querySelector('.dates');
+		}
+		// If no selection, restore initial label value
+		if (labelEl) {
+			if (
+				!this.startDate &&
+				!this.endDate &&
+				(!this.selectedDates || this.selectedDates.length === 0)
+			) {
+				labelEl.textContent = this._initialLabelValue || '';
+			} else {
+				labelEl.textContent = text;
+			}
+		}
 		this.updateHiddenInput();
 	}
 
