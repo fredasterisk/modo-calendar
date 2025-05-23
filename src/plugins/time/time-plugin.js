@@ -1,7 +1,6 @@
 import styles from './styles.css?inline';
 
 // Squelette minimal pour débloquer le build
-
 export function timePlugin(options = {}) {
 	return {
 		name: 'timePlugin',

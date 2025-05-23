@@ -72,11 +72,27 @@ export class NovaCalendar {
 			className: 'nova-calendar',
 		});
 		this.shadowRoot.appendChild(this.container);
-		this.hiddenInput = Object.assign(document.createElement('input'), {
-			type: 'hidden',
-			className: 'nova-calendar-timestamp',
-		});
-		this.shadowRoot.appendChild(this.hiddenInput);
+		// Création de l'input caché dans le DOM principal si non fourni
+		if (this.options.hiddenInput) {
+			this.hiddenInput = this.options.hiddenInput;
+		} else {
+			this.hiddenInput = Object.assign(document.createElement('input'), {
+				type: 'hidden',
+				className: 'nova-calendar-timestamp',
+				name:
+					(this.trigger && this.trigger.id)
+						? this.trigger.id
+						: (this.options.name || 'nova-calendar'),
+			});
+			if (this.trigger && this.trigger.parentNode) {
+				this.trigger.parentNode.insertBefore(
+					this.hiddenInput,
+					this.trigger.nextSibling
+				);
+			} else {
+				document.body.appendChild(this.hiddenInput);
+			}
+		}
 		if (!this.options.inline) {
 			this.container.style.display = 'none';
 			btn.addEventListener('click', (e) => {
@@ -484,22 +500,28 @@ export class NovaCalendar {
 
 	updateHiddenInput() {
 		if (!this.hiddenInput) return;
+		let value = '';
 		if (this.mode === 'single') {
-			this.hiddenInput.value = this.selectedDate
-				? this.selectedDate.getTime()
-				: '';
+			value = this.selectedDate ? {
+				mode: 'single',
+				dates: [this.selectedDate.getTime()]
+			} : '';
 		} else if (this.mode === 'range') {
-			const t1 = this.startDate ? this.startDate.getTime() : '',
-				t2 = this.endDate ? this.endDate.getTime() : '';
-			this.hiddenInput.value = t1 && t2 ? `${t1},${t2}` : t1 || '';
+			const t1 = this.startDate ? this.startDate.getTime() : null,
+				t2 = this.endDate ? this.endDate.getTime() : null;
+			if (t1 && t2) {
+				value = { mode: 'range', dates: [t1, t2] };
+			} else if (t1) {
+				value = { mode: 'range', dates: [t1] };
+			} else {
+				value = '';
+			}
 		} else if (this.mode === 'multiple') {
-			this.hiddenInput.value =
-				this.selectedDates?.length > 0
-					? [...this.selectedDates]
-							.sort((a, b) => a - b)
-							.map((d) => d.getTime())
-							.join(',')
-					: '';
+			const arr = this.selectedDates?.length > 0
+				? [...this.selectedDates].sort((a, b) => a - b).map((d) => d.getTime())
+				: [];
+			value = arr.length ? { mode: 'multiple', dates: arr } : '';
 		}
+		this.hiddenInput.value = value ? JSON.stringify(value) : '';
 	}
 }
