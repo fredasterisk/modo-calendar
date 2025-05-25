@@ -5,10 +5,11 @@
     flex-wrap: wrap;
 }
 
-.blocked {
-    opacity: 0.5;
+.nova-time-block.selected {
+    background: #0078d7;
+    color: white;
 }
 
-.nova-calendar {
-    background: blue !important;
+.blocked {
+    opacity: 0.5;
 }

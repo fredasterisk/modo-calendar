@@ -94,15 +94,6 @@
 			const calendarMulti = new NovaCalendar({
 				trigger: '#datepicker-multiple',
 				mode: 'multiple', // Mode de sélection de dates multiples
-				plugins: [
-					timePlugin({
-						interval: 60,
-						start: '08:00',
-						end: '20:00',
-						disabledTimes: ['12:00'],
-						multiple: true, // Permet la sélection de plusieurs blocs horaires par date
-					}),
-				],
 			});
 		</script>
 	</body>

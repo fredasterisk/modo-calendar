@@ -1,10 +1,22 @@
 // src/plugins/lock/lock-plugin.js
 // Plugin to handle blocked dates, no-range-start, and no-range-end for NovaCalendar
+import pluginStyles from './styles.css?raw';
+function injectCSS(shadowRoot) {
+	if (!shadowRoot) return;
+	if (shadowRoot.getElementById('lock-plugin-css')) return;
+	const style = document.createElement('style');
+	style.id = 'lock-plugin-css';
+	style.textContent = pluginStyles;
+	shadowRoot.appendChild(style);
+}
 
 export function lockPlugin(options = {}) {
 	return {
 		name: 'lock',
 		options,
+		onShadowReady(calendarInstance) {
+			injectCSS(calendarInstance.shadowRoot);
+		},
 		onInit(calendar) {
 			// Setters for lock states
 			calendar.setBlockedDates = (dates) => {
@@ -39,9 +51,7 @@ export function lockPlugin(options = {}) {
 				originalUpdateDayClasses();
 				if (!this.dayElements) return;
 				// Remove denied classes
-				this.dayElements.forEach(({ el }) => {
-					el.classList.remove('denied');
-				});
+				this.dayElements.forEach(({ el }) => el.classList.remove('denied'));
 				// Limit hover range to not exceed a blocked date
 				if (
 					this.mode === 'range' &&
@@ -215,9 +225,6 @@ export function lockPlugin(options = {}) {
 				return;
 			}
 			calendar.updateDayClasses && calendar.updateDayClasses();
-		},
-		onDateSelected(selected, calendar) {
-			// Optional: add feedback here
 		},
 	};
 }
