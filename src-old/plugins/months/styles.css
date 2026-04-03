@@ -1,0 +1,29 @@
+/* src/plugins/months/styles.css */
+.nova-months-wrapper {
+	display: flex;
+	gap: 2rem;
+	flex-wrap: wrap;
+	width: 100%;
+}
+.nova-month-col {
+	flex: 1 1 0;
+	min-width: 220px;
+}
+.nova-month-col .header {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	margin-bottom: 0.5em;
+}
+
+@media (max-width: 900px) {
+	.nova-months-wrapper {
+		flex-direction: column;
+		gap: 1.25rem;
+	}
+
+	.nova-month-col {
+		min-width: 0;
+		width: 100%;
+	}
+}

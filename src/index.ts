@@ -17,6 +17,8 @@ export type {
   HiddenInputValueSingle,
   HiddenInputValueRange,
   HiddenInputValueMultiple,
+  StatusMessageState,
+  StatusMessageType,
 } from './core/types';
 
 // i18n
@@ -37,3 +39,6 @@ export type { DropdownPluginOptions } from './plugins/dropdown/dropdown-plugin';
 
 export { presetsPlugin, presetRanges } from './plugins/presets/presets-plugin';
 export type { PresetsPluginOptions, PresetRange } from './plugins/presets/presets-plugin';
+
+export { i18nPlugin } from './plugins/i18n/i18n-plugin';
+export type { I18nPluginOptions, I18nLocaleEntry, I18nFormatContext } from './plugins/i18n/i18n-plugin';

@@ -13,6 +13,8 @@ import type {
   CalendarEventName,
   CalendarEventMap,
   HiddenInputValue,
+  StatusMessageState,
+  StatusMessageType,
 } from './types';
 import { EventEmitter } from './events';
 import { getLocale, getOrderedDayNames, formatDateDisplay, getMonthName } from './i18n';
@@ -89,6 +91,12 @@ export class ModoCalendar extends EventEmitter implements CalendarInstance {
   _batchStart?: () => void;
   _batchEnd?: () => void;
 
+  // Status messages
+  showStatusMessages: boolean;
+  _statusMessageState: StatusMessageState | null = null;
+  _statusAutoHideTimer: ReturnType<typeof setTimeout> | null = null;
+  _initialized = false;
+
   // Plugin-injected
   blockedDates?: number[];
   noRangeStartDates?: number[];
@@ -121,6 +129,7 @@ export class ModoCalendar extends EventEmitter implements CalendarInstance {
     this.minDate = parseDateOption(this.options.minDate);
     this.maxDate = parseDateOption(this.options.maxDate);
     this.classNames = this.options.classNames || {};
+    this.showStatusMessages = this.options.showStatusMessages !== false;
 
     if (this.mode === 'multiple') this.selectedDates = [];
 
@@ -263,6 +272,8 @@ export class ModoCalendar extends EventEmitter implements CalendarInstance {
     const labelEl = this.trigger?.querySelector('.dates') ??
       this.container.querySelector('.dates');
     if (labelEl) this._initialLabelValue = labelEl.textContent;
+
+    this._initialized = true;
   }
 
   showCalendar(): void {
@@ -660,6 +671,7 @@ export class ModoCalendar extends EventEmitter implements CalendarInstance {
 
       const idx = this.selectedDates.findIndex((d) => d.getTime() === selectedTime);
       if (idx === -1) {
+        if (!this._validateMultipleSelection()) return;
         this.selectedDates.push(selected);
         this.emit('dateSelected', { date: selected, mode: this.mode });
       } else {
@@ -717,13 +729,20 @@ export class ModoCalendar extends EventEmitter implements CalendarInstance {
 
       this.endDate = selected;
       this.hoverDate = null;
+
+      // Validate range constraints
+      const rangeStart = this.startDate.getTime() <= selected.getTime() ? this.startDate : selected;
+      const rangeEnd = this.startDate.getTime() > selected.getTime() ? this.startDate : selected;
+      if (!this._validateRangeSelection(rangeStart, rangeEnd)) {
+        this.endDate = null;
+        this.updateDayClasses();
+        return;
+      }
+
       this.updateButtonLabel();
       this.updateDayClasses();
       this.updateHiddenInput();
-      this.emit('rangeSelected', {
-        start: this.startDate.getTime() <= selected.getTime() ? this.startDate : selected,
-        end: this.startDate.getTime() > selected.getTime() ? this.startDate : selected,
-      });
+      this.emit('rangeSelected', { start: rangeStart, end: rangeEnd });
 
       if (!this.options.inline && this.container) {
         animateClose(this.container);
@@ -1024,10 +1043,7 @@ export class ModoCalendar extends EventEmitter implements CalendarInstance {
   // --- Utilities ---
 
   triggerInvalidRangeFeedback(): void {
-    if (!this.container) return;
-    animateShake(this.container);
-    this.container.classList.add('mc-invalid-range');
-    setTimeout(() => this.container?.classList.remove('mc-invalid-range'), 600);
+    this.triggerErrorFeedback();
   }
 
   formatDisplay(date: Date): string {
@@ -1050,5 +1066,175 @@ export class ModoCalendar extends EventEmitter implements CalendarInstance {
       current.setDate(current.getDate() + dir);
     }
     return range;
+  }
+
+  // --- Status Message API ---
+
+  setStatusMessage(state: StatusMessageState): void {
+    if (!this.showStatusMessages) {
+      this._statusMessageState = null;
+      return;
+    }
+    this._statusMessageState = state;
+    this._renderStatusMessage();
+    this.emit('statusMessage', state);
+
+    // Auto-hide
+    if (this._statusAutoHideTimer) clearTimeout(this._statusAutoHideTimer);
+    const delay = state.autoHideDelay ?? 4000;
+    if (delay > 0) {
+      this._statusAutoHideTimer = setTimeout(() => this.clearStatusMessage(), delay);
+    }
+  }
+
+  clearStatusMessage(): void {
+    if (this._statusAutoHideTimer) {
+      clearTimeout(this._statusAutoHideTimer);
+      this._statusAutoHideTimer = null;
+    }
+    this._statusMessageState = null;
+    this._removeStatusElement();
+    this.emit('statusCleared', undefined as never);
+  }
+
+  private _renderStatusMessage(): void {
+    if (!this.container) return;
+    this._removeStatusElement();
+
+    const state = this._statusMessageState;
+    if (!state) return;
+
+    const root = this.shadowRoot || this.container;
+    const statusEl = document.createElement('div');
+    statusEl.className = `mc-status mc-status--${state.type}`;
+    statusEl.setAttribute('role', state.type === 'error' ? 'alert' : 'status');
+    statusEl.setAttribute('aria-live', state.type === 'error' ? 'assertive' : 'polite');
+
+    // Icon
+    const iconSvg = this._getStatusIcon(state.type);
+    const iconEl = document.createElement('span');
+    iconEl.className = 'mc-status__icon';
+    iconEl.innerHTML = iconSvg;
+    statusEl.appendChild(iconEl);
+
+    // Text
+    const textEl = document.createElement('span');
+    textEl.className = 'mc-status__text';
+    textEl.textContent = state.text;
+    statusEl.appendChild(textEl);
+
+    this.container.appendChild(statusEl);
+  }
+
+  private _removeStatusElement(): void {
+    const root = this.shadowRoot || this.container;
+    root?.querySelector('.mc-status')?.remove();
+  }
+
+  private _getStatusIcon(type: StatusMessageType): string {
+    switch (type) {
+      case 'info':
+        return '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>';
+      case 'warning':
+        return '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>';
+      case 'error':
+        return '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="m15 9-6 6"/><path d="m9 9 6 6"/></svg>';
+    }
+  }
+
+  // --- Error Feedback ---
+
+  triggerErrorFeedback(): void {
+    if (!this.container) return;
+    this.container.classList.remove('mc-error-feedback');
+    // Force reflow to restart animation
+    void this.container.offsetWidth;
+    this.container.classList.add('mc-error-feedback');
+    setTimeout(() => this.container?.classList.remove('mc-error-feedback'), 600);
+  }
+
+  notifyInvalidSelection(reason: string, type: StatusMessageType = 'error'): void {
+    if (type === 'error' || type === 'warning') {
+      this.triggerErrorFeedback();
+    }
+    this.setStatusMessage({ type, text: reason, autoHideDelay: 4000 });
+    this.emit('invalidSelection', { type, reason });
+  }
+
+  // --- Locale API ---
+
+  setLocale(code: string, opts: { reRender?: boolean } = {}): void {
+    this.locale = getLocale(code);
+    this.emit('localeChanged', { locale: code });
+    if (opts.reRender !== false && this._initialized) {
+      this.renderCalendar();
+      this.updateDayClasses();
+    }
+  }
+
+  setWeekStartsOn(day: number, opts: { reRender?: boolean } = {}): void {
+    const normalized = ((Math.round(day) % 7) + 7) % 7;
+    this.locale = { ...this.locale, firstDayOfWeek: normalized };
+    if (opts.reRender !== false && this._initialized) {
+      this.renderCalendar();
+      this.updateDayClasses();
+    }
+  }
+
+  getResolvedLocale(): string {
+    return this.locale.code;
+  }
+
+  getLabelElement(): HTMLElement | null {
+    return (this.trigger?.querySelector('.dates') ??
+      this.container?.querySelector('.dates')) as HTMLElement | null;
+  }
+
+  // --- Range/Multiple Validation ---
+
+  private _validateRangeSelection(start: Date, end: Date): boolean {
+    const minNights = this.options.minRangeNights;
+    const maxNights = this.options.maxRangeNights;
+    if (minNights == null && maxNights == null) return true;
+
+    const nights = Math.round(Math.abs(end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
+
+    if (minNights != null && nights < minNights) {
+      this.notifyInvalidSelection(
+        this.locale.code.startsWith('fr')
+          ? `Minimum ${minNights} nuit${minNights > 1 ? 's' : ''} requise${minNights > 1 ? 's' : ''}`
+          : `Minimum ${minNights} night${minNights > 1 ? 's' : ''} required`,
+        'warning',
+      );
+      return false;
+    }
+
+    if (maxNights != null && nights > maxNights) {
+      this.notifyInvalidSelection(
+        this.locale.code.startsWith('fr')
+          ? `Maximum ${maxNights} nuit${maxNights > 1 ? 's' : ''} autorisée${maxNights > 1 ? 's' : ''}`
+          : `Maximum ${maxNights} night${maxNights > 1 ? 's' : ''} allowed`,
+        'warning',
+      );
+      return false;
+    }
+
+    return true;
+  }
+
+  private _validateMultipleSelection(): boolean {
+    const max = this.options.maxMultipleDates;
+    if (max == null) return true;
+
+    if (this.selectedDates.length >= max) {
+      this.notifyInvalidSelection(
+        this.locale.code.startsWith('fr')
+          ? `Maximum ${max} date${max > 1 ? 's' : ''} autorisée${max > 1 ? 's' : ''}`
+          : `Maximum ${max} date${max > 1 ? 's' : ''} allowed`,
+        'warning',
+      );
+      return false;
+    }
+    return true;
   }
 }

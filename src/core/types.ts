@@ -2,6 +2,15 @@
 
 export type CalendarMode = 'single' | 'range' | 'multiple';
 
+// Status message types
+export type StatusMessageType = 'info' | 'warning' | 'error';
+
+export interface StatusMessageState {
+  type: StatusMessageType;
+  text: string;
+  autoHideDelay?: number; // ms, 0 = no auto-hide
+}
+
 export interface CalendarLocale {
   code: string;
   monthNames: string[];
@@ -75,6 +84,18 @@ export interface CalendarOptions {
   classNames?: Partial<CalendarClassNames>;
   plugins?: CalendarPlugin[];
   onTimeSelected?: (data: { date: Date; time: string }) => void;
+
+  // Status messages
+  showStatusMessages?: boolean;
+
+  // Range validation
+  minRangeNights?: number;
+  maxRangeNights?: number;
+
+  // Multiple selection validation
+  minMultipleDates?: number;
+  maxMultipleDates?: number;
+
   [key: string]: unknown;
 }
 
@@ -107,6 +128,10 @@ export type CalendarEventMap = {
   'calendarClose': void;
   'modeChanged': { mode: CalendarMode };
   'stateChanged': { key: string; value: unknown };
+  'statusMessage': StatusMessageState;
+  'statusCleared': void;
+  'invalidSelection': { type: StatusMessageType; reason: string };
+  'localeChanged': { locale: string };
 };
 
 export type CalendarEventName = keyof CalendarEventMap;
@@ -180,6 +205,18 @@ export interface CalendarInstance {
   triggerInvalidRangeFeedback(): void;
   destroy(): void;
 
+  // Status message API
+  setStatusMessage(state: StatusMessageState): void;
+  clearStatusMessage(): void;
+  triggerErrorFeedback(): void;
+  notifyInvalidSelection(reason: string, type?: StatusMessageType): void;
+
+  // Locale API
+  setLocale(code: string, opts?: { reRender?: boolean }): void;
+  setWeekStartsOn(day: number, opts?: { reRender?: boolean }): void;
+  getResolvedLocale(): string;
+  getLabelElement(): HTMLElement | null;
+
   // Plugin-injected state (optional)
   blockedDates?: number[];
   noRangeStartDates?: number[];
@@ -187,6 +224,10 @@ export interface CalendarInstance {
   selectedTimes?: Record<number, string>;
   monthOffsets?: number[];
   strictRange2Months?: boolean;
+  showStatusMessages?: boolean;
+  _statusMessageState?: StatusMessageState | null;
+  _statusAutoHideTimer?: ReturnType<typeof setTimeout> | null;
+  _initialized?: boolean;
   _timePluginState?: {
     selectedTimes: Record<number, string>;
     _lastDateClicked: Date | null;
