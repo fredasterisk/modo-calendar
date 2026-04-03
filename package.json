@@ -1,5 +1,5 @@
 {
-    "name": "nova-calendar",
+    "name": "modo-calendar",
     "version": "0.1.0",
     "description": "Calendrier JavaScript sans dépendance",
     "type": "module",
@@ -9,6 +9,7 @@
         "preview": "vite preview"
     },
     "devDependencies": {
+        "typescript": "^6.0.2",
         "vite": "^5.4.19"
     }
 }

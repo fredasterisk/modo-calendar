@@ -1,26 +1,44 @@
 /* src/plugins/months/styles.css */
-.nova-months-wrapper {
-	display: flex;
-	gap: 2rem;
+.mc-months-wrapper {
+  display: flex;
+  gap: 2rem;
 }
-.nova-month-col {
-	flex: 1 1 0;
-	min-width: 220px;
+
+.mc-month-col {
+  flex: 1 1 0;
+  min-width: 220px;
 }
-.nova-month-col .header {
-	display: flex;
-	justify-content: space-between;
-	align-items: center;
-	margin-bottom: 0.5em;
+
+.mc-month-col .mc-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5em;
 }
-.nova-month-col .header button {
-	background: none;
-	border: none;
-	font-size: 1.2em;
-	cursor: pointer;
-	padding: 0 0.3em;
-	color: inherit;
+
+.mc-month-col .mc-nav-btn {
+  background: none;
+  border: none;
+  font-size: 1.2em;
+  cursor: pointer;
+  padding: 0 0.3em;
+  color: inherit;
+  border-radius: var(--mc-cell-radius, 9999px);
+  transition: background var(--mc-transition, 150ms ease);
 }
-.nova-month-col .header button:focus {
-	outline: 2px solid #0078d7;
+
+.mc-month-col .mc-nav-btn:hover {
+  background: var(--mc-muted, #f1f5f9);
+}
+
+.mc-month-col .mc-nav-btn:focus-visible {
+  outline: 2px solid var(--mc-accent, #2563eb);
+  outline-offset: 2px;
+}
+
+@media (max-width: 639px) {
+  .mc-months-wrapper {
+    flex-direction: column;
+    gap: 1.5rem;
+  }
 }

@@ -1,4 +1,4 @@
-# NovaCalendar
+# ModoCalendar
 
 A modern, lightweight, and extensible calendar/date-picker component for the web. Supports single, range, and multiple date selection, with plugin support for advanced features (multi-month, time blocks, etc). Styles are encapsulated in Shadow DOM for robust theming.
 
@@ -18,7 +18,7 @@ See the [`demo/index.html`](demo/index.html) for usage examples and visual tests
 ## Installation
 
 ```bash
-npm install nova-calendar
+npm install modo-calendar
 ```
 
 Or simply copy the `src/` folder into your project.
@@ -27,13 +27,13 @@ Or simply copy the `src/` folder into your project.
 
 ```js
 import {
-	NovaCalendar,
+	ModoCalendar,
 	timePlugin,
 	monthsPlugin,
 	lockPlugin,
-} from 'nova-calendar';
+} from 'modo-calendar';
 
-const calendar = new NovaCalendar({
+const calendar = new ModoCalendar({
 	trigger: '#calendar-btn',
 	mode: 'range',
 	plugins: [
@@ -49,7 +49,7 @@ Or use directly in HTML:
 ```html
 <script src="src/index.js"></script>
 <script>
-	const calendar = new NovaCalendar({
+	const calendar = new ModoCalendar({
 		trigger: '#calendar-btn',
 		mode: 'single',
 		plugins: [lockPlugin({ blockedDates: ['2025-06-20'] })],
@@ -87,8 +87,8 @@ lockPlugin({
 **Exemple d'utilisation** :
 
 ```js
-import { NovaCalendar, lockPlugin } from 'nova-calendar';
-const calendar = new NovaCalendar({
+import { ModoCalendar, lockPlugin } from 'modo-calendar';
+const calendar = new ModoCalendar({
 	trigger: '#calendar-btn',
 	mode: 'range',
 	plugins: [
@@ -111,7 +111,7 @@ Chaque modification met à jour l'affichage et bloque les sélections interdites
 
 ## API
 
-- `new NovaCalendar(options)` — create a calendar instance.
+- `new ModoCalendar(options)` — create a calendar instance.
 - `calendar.setRange(start, end)` — set selected range.
 - `calendar.setBlockedDates(dates)` — block specific dates.
 - `calendar.setNoRangeStartDates(dates)` — block range starts.
@@ -139,4 +139,4 @@ MIT License. See [LICENSE](LICENSE) for details.
 
 ---
 
-© 2025 NovaCalendar contributors.
+© 2025 ModoCalendar contributors.

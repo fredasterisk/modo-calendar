@@ -2,88 +2,144 @@
 <html lang="fr">
 	<head>
 		<meta charset="UTF-8" />
-		<title>Démo Nova Calendar</title>
-		<link rel="stylesheet" href="/demo/demo.css" />
-		<script type="module" src="/src/index.js"></script>
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<title>Démo ModoCalendar</title>
+		<script src="https://cdn.tailwindcss.com"></script>
+		<script>
+			tailwind.config = {
+				theme: {
+					extend: {
+						fontFamily: { sans: ['Inter', 'system-ui', 'sans-serif'] },
+					},
+				},
+			};
+		</script>
+		<link rel="preconnect" href="https://fonts.googleapis.com" />
+		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+		<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
 	</head>
-	<body>
-		<div class="container">
-			<button id="datepicker-single" type="button" class="trigger">
-				<span class="icon"
-					><svg
-						xmlns="http://www.w3.org/2000/svg"
-						viewBox="0 0 24 24"
-						fill="currentColor"
-					>
-						<path
-							d="M9 1V3H15V1H17V3H21C21.5523 3 22 3.44772 22 4V20C22 20.5523 21.5523 21 21 21H3C2.44772 21 2 20.5523 2 20V4C2 3.44772 2.44772 3 3 3H7V1H9ZM20 11H4V19H20V11ZM11 13V17H6V13H11ZM7 5H4V9H20V5H17V7H15V5H9V7H7V5Z"
-						></path>
-					</svg>
-				</span>
-				<div>
-					<span class="label">Date simple</span>
-					<span class="dates">Choisir...</span>
-				</div>
-			</button>
-			<button id="datepicker-range" type="button" class="trigger">
-				<span class="icon"
-					><svg
-						xmlns="http://www.w3.org/2000/svg"
-						viewBox="0 0 24 24"
-						fill="currentColor"
-					>
-						<path
-							d="M9 1V3H15V1H17V3H21C21.5523 3 22 3.44772 22 4V20C22 20.5523 21.5523 21 21 21H3C2.44772 21 2 20.5523 2 20V4C2 3.44772 2.44772 3 3 3H7V1H9ZM20 11H4V19H20V11ZM11 13V17H6V13H11ZM7 5H4V9H20V5H17V7H15V5H9V7H7V5Z"
-						></path>
-					</svg>
-				</span>
-				<div>
-					<span class="label">Plage de dates</span>
-					<span class="dates">Choisir...</span>
-				</div>
-			</button>
-			<button id="datepicker-multiple" type="button" class="trigger">
-				<span class="icon"
-					><svg
-						xmlns="http://www.w3.org/2000/svg"
-						viewBox="0 0 24 24"
-						fill="currentColor"
-					>
-						<path
-							d="M9 1V3H15V1H17V3H21C21.5523 3 22 3.44772 22 4V20C22 20.5523 21.5523 21 21 21H3C2.44772 21 2 20.5523 2 20V4C2 3.44772 2.44772 3 3 3H7V1H9ZM20 11H4V19H20V11ZM11 13V17H6V13H11ZM7 5H4V9H20V5H17V7H15V5H9V7H7V5Z"
-						></path>
-					</svg>
-				</span>
-				<div>
-					<span class="label">Dates multiples</span>
-					<span class="dates">Choisir...</span>
-				</div>
-			</button>
+	<body class="bg-slate-50 text-slate-900 font-sans antialiased min-h-screen">
+		<div class="max-w-2xl mx-auto px-6 py-12 space-y-8">
+			<div>
+				<h1 class="text-2xl font-bold tracking-tight mb-1">ModoCalendar</h1>
+				<p class="text-sm text-slate-500">Démo des 6 modes de sélection</p>
+			</div>
+
+			<!-- 1. Date simple -->
+			<section class="space-y-2">
+				<h2 class="text-sm font-semibold text-slate-500 uppercase tracking-wide">1. Date simple</h2>
+				<button id="datepicker-single" type="button"
+					class="flex items-center gap-3 min-w-[200px] max-w-[340px] bg-white border border-slate-200 rounded-lg px-3 pt-2 pb-1.5 text-left cursor-pointer hover:border-slate-400 transition-colors shadow-sm">
+					<svg class="w-5 h-5 text-slate-600 shrink-0" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M9 1V3H15V1H17V3H21C21.5523 3 22 3.44772 22 4V20C22 20.5523 21.5523 21 21 21H3C2.44772 21 2 20.5523 2 20V4C2 3.44772 2.44772 3 3 3H7V1H9ZM20 11H4V19H20V11ZM11 13V17H6V13H11ZM7 5H4V9H20V5H17V7H15V5H9V7H7V5Z"></path></svg>
+					<div>
+						<span class="block text-xs font-medium text-slate-500 leading-tight">Date simple</span>
+						<span class="dates block text-sm text-slate-900 truncate max-w-[200px]">Choisir...</span>
+					</div>
+				</button>
+			</section>
+
+			<!-- 2. Date + heure -->
+			<section class="space-y-2">
+				<h2 class="text-sm font-semibold text-slate-500 uppercase tracking-wide">2. Date + heure (blocks)</h2>
+				<button id="datepicker-single-time" type="button"
+					class="flex items-center gap-3 min-w-[200px] max-w-[340px] bg-white border border-slate-200 rounded-lg px-3 pt-2 pb-1.5 text-left cursor-pointer hover:border-slate-400 transition-colors shadow-sm">
+					<svg class="w-5 h-5 text-slate-600 shrink-0" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M9 1V3H15V1H17V3H21C21.5523 3 22 3.44772 22 4V20C22 20.5523 21.5523 21 21 21H3C2.44772 21 2 20.5523 2 20V4C2 3.44772 2.44772 3 3 3H7V1H9ZM20 11H4V19H20V11ZM11 13V17H6V13H11ZM7 5H4V9H20V5H17V7H15V5H9V7H7V5Z"></path></svg>
+					<div>
+						<span class="block text-xs font-medium text-slate-500 leading-tight">Date + heure</span>
+						<span class="dates block text-sm text-slate-900 truncate max-w-[200px]">Choisir...</span>
+					</div>
+				</button>
+			</section>
+
+			<!-- 3. Plage de dates -->
+			<section class="space-y-2">
+				<h2 class="text-sm font-semibold text-slate-500 uppercase tracking-wide">3. Plage de dates (2 mois + lock)</h2>
+				<button id="datepicker-range" type="button"
+					class="flex items-center gap-3 min-w-[200px] max-w-[340px] bg-white border border-slate-200 rounded-lg px-3 pt-2 pb-1.5 text-left cursor-pointer hover:border-slate-400 transition-colors shadow-sm">
+					<svg class="w-5 h-5 text-slate-600 shrink-0" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M9 1V3H15V1H17V3H21C21.5523 3 22 3.44772 22 4V20C22 20.5523 21.5523 21 21 21H3C2.44772 21 2 20.5523 2 20V4C2 3.44772 2.44772 3 3 3H7V1H9ZM20 11H4V19H20V11ZM11 13V17H6V13H11ZM7 5H4V9H20V5H17V7H15V5H9V7H7V5Z"></path></svg>
+					<div>
+						<span class="block text-xs font-medium text-slate-500 leading-tight">Plage de dates</span>
+						<span class="dates block text-sm text-slate-900 truncate max-w-[200px]">Choisir...</span>
+					</div>
+				</button>
+			</section>
+
+			<!-- 4. Plage + heures -->
+			<section class="space-y-2">
+				<h2 class="text-sm font-semibold text-slate-500 uppercase tracking-wide">4. Plage + heures (arrivée/départ, spinner)</h2>
+				<button id="datepicker-range-time" type="button"
+					class="flex items-center gap-3 min-w-[200px] max-w-[340px] bg-white border border-slate-200 rounded-lg px-3 pt-2 pb-1.5 text-left cursor-pointer hover:border-slate-400 transition-colors shadow-sm">
+					<svg class="w-5 h-5 text-slate-600 shrink-0" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M9 1V3H15V1H17V3H21C21.5523 3 22 3.44772 22 4V20C22 20.5523 21.5523 21 21 21H3C2.44772 21 2 20.5523 2 20V4C2 3.44772 2.44772 3 3 3H7V1H9ZM20 11H4V19H20V11ZM11 13V17H6V13H11ZM7 5H4V9H20V5H17V7H15V5H9V7H7V5Z"></path></svg>
+					<div>
+						<span class="block text-xs font-medium text-slate-500 leading-tight">Plage + heures</span>
+						<span class="dates block text-sm text-slate-900 truncate max-w-[200px]">Choisir...</span>
+					</div>
+				</button>
+			</section>
+
+			<!-- 5. Dates multiples -->
+			<section class="space-y-2">
+				<h2 class="text-sm font-semibold text-slate-500 uppercase tracking-wide">5. Dates multiples</h2>
+				<button id="datepicker-multiple" type="button"
+					class="flex items-center gap-3 min-w-[200px] max-w-[340px] bg-white border border-slate-200 rounded-lg px-3 pt-2 pb-1.5 text-left cursor-pointer hover:border-slate-400 transition-colors shadow-sm">
+					<svg class="w-5 h-5 text-slate-600 shrink-0" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M9 1V3H15V1H17V3H21C21.5523 3 22 3.44772 22 4V20C22 20.5523 21.5523 21 21 21H3C2.44772 21 2 20.5523 2 20V4C2 3.44772 2.44772 3 3 3H7V1H9ZM20 11H4V19H20V11ZM11 13V17H6V13H11ZM7 5H4V9H20V5H17V7H15V5H9V7H7V5Z"></path></svg>
+					<div>
+						<span class="block text-xs font-medium text-slate-500 leading-tight">Dates multiples</span>
+						<span class="dates block text-sm text-slate-900 truncate max-w-[200px]">Choisir...</span>
+					</div>
+				</button>
+			</section>
+
+			<!-- 6. Presets + dropdown -->
+			<section class="space-y-2">
+				<h2 class="text-sm font-semibold text-slate-500 uppercase tracking-wide">6. Plage avec presets + dropdown</h2>
+				<button id="datepicker-presets" type="button"
+					class="flex items-center gap-3 min-w-[200px] max-w-[340px] bg-white border border-slate-200 rounded-lg px-3 pt-2 pb-1.5 text-left cursor-pointer hover:border-slate-400 transition-colors shadow-sm">
+					<svg class="w-5 h-5 text-slate-600 shrink-0" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M9 1V3H15V1H17V3H21C21.5523 3 22 3.44772 22 4V20C22 20.5523 21.5523 21 21 21H3C2.44772 21 2 20.5523 2 20V4C2 3.44772 2.44772 3 3 3H7V1H9ZM20 11H4V19H20V11ZM11 13V17H6V13H11ZM7 5H4V9H20V5H17V7H15V5H9V7H7V5Z"></path></svg>
+					<div>
+						<span class="block text-xs font-medium text-slate-500 leading-tight">Avec presets</span>
+						<span class="dates block text-sm text-slate-900 truncate max-w-[200px]">Choisir...</span>
+					</div>
+				</button>
+			</section>
 		</div>
+
 		<script type="module">
-			const calendarSingle = new NovaCalendar({
+			import {
+				ModoCalendar,
+				lockPlugin,
+				monthsPlugin,
+				timePlugin,
+				dropdownPlugin,
+				presetsPlugin,
+				presetRanges,
+			} from '/src/index.ts';
+
+			// 1. Date simple
+			new ModoCalendar({
 				trigger: '#datepicker-single',
-				mode: 'single', // Mode de sélection de date simple
+				mode: 'single',
+			});
+
+			// 2. Date + heure (blocks)
+			new ModoCalendar({
+				trigger: '#datepicker-single-time',
+				mode: 'single',
 				plugins: [
 					timePlugin({
 						from: '08:00',
 						to: '18:00',
 						interval: 90,
-						disabledTimes: [
-							['11:00', '12:00'],
-							['14:00', '15:00'],
-						],
 					}),
 				],
 			});
-			const calendarRange = new NovaCalendar({
+
+			// 3. Plage de dates (2 mois + lock)
+			new ModoCalendar({
 				trigger: '#datepicker-range',
-				mode: 'range', // Mode de sélection de plage de dates
-				format: (start, end) => `${start} - ${end}`, // Fonction de format
+				mode: 'range',
 				plugins: [
-					monthsPlugin({
-						months: 2,
-					}),
+					monthsPlugin({ months: 2 }),
 					lockPlugin({
 						blockedDates: ['2025-06-20', '2025-06-24'],
 						noRangeStartDates: ['2025-06-22'],
@@ -91,9 +147,46 @@
 					}),
 				],
 			});
-			const calendarMulti = new NovaCalendar({
+
+			// 4. Plage + heures (arrivée/départ, spinner)
+			new ModoCalendar({
+				trigger: '#datepicker-range-time',
+				mode: 'range',
+				plugins: [
+					monthsPlugin({ months: 2 }),
+					timePlugin({
+						pickerType: 'spinner',
+						minuteStep: 15,
+					}),
+				],
+			});
+
+			// 5. Dates multiples
+			new ModoCalendar({
 				trigger: '#datepicker-multiple',
-				mode: 'multiple', // Mode de sélection de dates multiples
+				mode: 'multiple',
+				plugins: [
+					monthsPlugin({ months: 2 }),
+				],
+			});
+
+			// 6. Presets + dropdown
+			new ModoCalendar({
+				trigger: '#datepicker-presets',
+				mode: 'range',
+				plugins: [
+					monthsPlugin({ months: 2 }),
+					dropdownPlugin({ yearRange: [2024, 2027] }),
+					presetsPlugin({
+						presets: [
+							presetRanges.today(),
+							presetRanges.last7Days(),
+							presetRanges.last30Days(),
+							presetRanges.thisMonth(),
+							presetRanges.nextWeek(),
+						],
+					}),
+				],
 			});
 		</script>
 	</body>

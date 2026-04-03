@@ -36,11 +36,6 @@ html {
     'kern' 1;      /* Kerning */
 }
 
-.container {
-  display: flex;
-  gap: 2rem;
-}
-
 /* Calendar */
 
 /* Button */

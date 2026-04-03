@@ -1,53 +1,49 @@
-/* blocked */
-.day.blocked {
-	opacity: 0.5;
-	background: repeating-linear-gradient(135deg, transparent, #868686 2.2px, transparent 0, transparent 4.25px);
-	cursor: not-allowed;
+/* Lock Plugin — Blocked & restricted dates (BEM: mc-) */
+.mc-day--blocked {
+  opacity: 0.5;
+  background: repeating-linear-gradient(135deg, transparent, var(--mc-muted-fg, #868686) 2.2px, transparent 0, transparent 4.25px);
+  cursor: not-allowed;
   pointer-events: none;
 }
 
-.day.blocked.in-range {
-  background: repeating-linear-gradient(135deg, transparent, #eb1616 2px, transparent 0, transparent 4.25px);
+.mc-day--blocked.mc-day--in-range {
+  background: repeating-linear-gradient(135deg, transparent, var(--mc-danger, #ef4444) 2px, transparent 0, transparent 4.25px);
 }
 
-.day.no-range-start, .day.no-range-end {
+.mc-day--no-range-start,
+.mc-day--no-range-end {
   position: relative;
 }
 
-.day:is(.no-range-start, .no-range-end):after {
+.mc-day:is(.mc-day--no-range-start, .mc-day--no-range-end)::after {
   content: "";
   position: absolute;
   opacity: 0.5;
-  top: 0;
-  right: 0;
-  width: 100%;
-  height: 100%;
-  background: repeating-linear-gradient(135deg, transparent, #ff9800 2px, transparent 0, transparent 4.25px);
+  inset: 0;
+  background: repeating-linear-gradient(135deg, transparent, var(--mc-warning, #f59e0b) 2px, transparent 0, transparent 4.25px);
   clip-path: polygon(100% 0, 0 0, 100% 100%);
   pointer-events: none;
+  border-radius: inherit;
 }
 
-.day.no-range-start:after {
-  background: repeating-linear-gradient(135deg, transparent, #ff9800 2px, transparent 0, transparent 4.25px);
+.mc-day--no-range-start::after {
   clip-path: polygon(100% 0, 0 0, 100% 100%);
 }
 
-.day.no-range-end:after {
-  background: repeating-linear-gradient(135deg, transparent, #ff9800 2px, transparent 0, transparent 4.25px);
+.mc-day--no-range-end::after {
   clip-path: polygon(100% 0, 0 100%, 0 0);
 }
 
-.day.no-range-start.no-range-end:after {
+.mc-day--no-range-start.mc-day--no-range-end::after {
   clip-path: unset;
 }
 
-.nova-calendar.invalid-range {
-  animation: shake 0.4s cubic-bezier(.36,.07,.19,.97) both;
-  border-color: #ff9800;
+.mc-invalid-range {
+  border-color: var(--mc-warning, #f59e0b);
 }
 
-.day:not(.range-start, .range-end).denied {
-    background: repeating-linear-gradient(135deg, transparent, #eb1616 2px, transparent 0, transparent 4.25px);
-    position: relative;
-    z-index: 2;
+.mc-day--denied:not(.mc-day--range-start):not(.mc-day--range-end) {
+  background: repeating-linear-gradient(135deg, transparent, var(--mc-danger, #ef4444) 2px, transparent 0, transparent 4.25px);
+  position: relative;
+  z-index: 2;
 }
