@@ -147,6 +147,13 @@ export function presetsPlugin(options: PresetsPluginOptions): CalendarPlugin {
           // Navigate calendar to the start month so user can see the range
           calendar.date = new Date(start.getFullYear(), start.getMonth(), 1);
 
+          // Reset month offsets so consecutive months display from the preset's start
+          if (calendar.monthOffsets) {
+            for (let i = 0; i < calendar.monthOffsets.length; i++) {
+              calendar.monthOffsets[i] = 0;
+            }
+          }
+
           // Set range using the proper range API
           calendar.startDate = start;
           calendar.endDate = end;
