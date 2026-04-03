@@ -28,20 +28,28 @@
   font-weight: 500;
 }
 
-.mc-time-block:hover:not(:disabled) {
+.mc-time-block:hover:not(:disabled):not(.mc-time-block--selected) {
   background: var(--mc-muted, #f1f5f9);
   border-color: var(--mc-accent, #2563eb);
 }
 
-.mc-time-block--selected {
+.mc-time-block--selected,
+.mc-time-block.mc-btn.mc-time-block--selected,
+.mc-time-block.mc-time-block--selected:hover {
   background: var(--mc-accent, #2563eb);
   color: var(--mc-accent-fg, #fff);
   border-color: var(--mc-accent, #2563eb);
 }
 
-.mc-time-block--blocked {
-  opacity: 0.4;
+.mc-time-block.mc-time-block--blocked,
+.mc-time-block.mc-time-block--blocked:disabled {
+  opacity: 1;
   cursor: not-allowed;
+  text-decoration: line-through;
+  background: var(--mc-blocked-bg, #f8fafc);
+  color: #64748b;
+  border-color: var(--mc-border, #e2e8f0);
+  pointer-events: none;
 }
 
 /* Spinner picker */

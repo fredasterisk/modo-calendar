@@ -6,6 +6,7 @@
 import pluginStyles from './styles.css?raw';
 import type { CalendarPlugin, CalendarInstance, TimeSlot } from '../../core/types';
 import type { LockRule, DateEffect } from '../lock/lock-plugin';
+import { getDateEffect } from '../lock/lock-plugin';
 import { formatTime, formatDateDisplay } from '../../core/i18n';
 import { animateSelect, staggerFadeIn } from '../../core/animations';
 import { createSpinner } from './spinner';
@@ -35,39 +36,39 @@ function getDateKey(d: Date): number {
   return dt.getTime();
 }
 
-/** Check if a time label ("HH:MM") is blocked by lock rules for a given date. */
-function isTimeBlockedByRules(calendar: CalendarInstance, date: Date, timeLabel: string): boolean {
-  const rules = calendar._lockRules as LockRule[] | undefined;
-  if (!rules?.length) return false;
+/** Resolve lock rules from the calendar instance (direct property or lock plugin options). */
+function _getLockRules(calendar: CalendarInstance): LockRule[] {
+  // Primary: rules stored by lock plugin's onInit
+  const direct = calendar._lockRules as LockRule[] | undefined;
+  if (direct?.length) return direct;
 
-  // Lazy-load getDateEffect to avoid circular import at module level
-  let getDateEffect: ((rules: LockRule[], date: Date) => DateEffect) | undefined;
-  try {
-    const lockPlugin = calendar.plugins?.find((p) => p.name === 'lock');
-    if (!lockPlugin) return false;
-    // Access exported function via dynamic lookup on the instance
-    getDateEffect = calendar._getDateEffect as typeof getDateEffect;
-  } catch {
-    return false;
-  }
-  if (!getDateEffect) return false;
+  // Fallback: read from lock plugin options (covers Proxy/binding edge cases)
+  const lockOpts = calendar.plugins?.find((p) => p.name === 'lock')?.options as
+    { rules?: LockRule[] } | undefined;
+  return lockOpts?.rules || [];
+}
+
+/** Check if a time slot starting at given minutes is blocked by lock rules for a given date. */
+function isTimeBlockedByRules(calendar: CalendarInstance, date: Date, _timeLabel: string, rawHour?: number, rawMinute?: number): boolean {
+  const rules = _getLockRules(calendar);
+  if (!rules.length) return false;
 
   const effect = getDateEffect(rules, date);
   if (effect.blockAllTimes) return true;
   if (!effect.blockedTimes.length) return false;
 
-  // Parse the time label (e.g. "08:00")
-  const timeMins = _parseTimeToMinutes(timeLabel);
+  // Use raw hour/minute if provided (avoids locale formatting issues)
+  const timeMins = (rawHour !== undefined && rawMinute !== undefined)
+    ? rawHour * 60 + rawMinute
+    : _parseTimeToMinutes(_timeLabel);
   if (timeMins === null) return false;
 
-  for (const rule of effect.blockedTimes) {
-    // Range format: "HH:MM-HH:MM"
-    if (rule.includes('-')) {
-      const [start, end] = rule.split('-').map(_parseTimeToMinutes);
+  for (const range of effect.blockedTimes) {
+    if (range.includes('-')) {
+      const [start, end] = range.split('-').map(_parseTimeToMinutes);
       if (start !== null && end !== null && timeMins >= start && timeMins < end) return true;
     } else {
-      // Exact match: "HH:MM"
-      if (_parseTimeToMinutes(rule) === timeMins) return true;
+      if (_parseTimeToMinutes(range) === timeMins) return true;
     }
   }
   return false;
@@ -277,13 +278,15 @@ function _renderBlocks(
     const next = new Date(cur.getTime() + interval * 60000);
     if (next > end) break;
 
+    const curH = cur.getHours();
+    const curM = cur.getMinutes();
     const label = formatTime(cur, calendar.locale);
     const nextLabel = formatTime(next, calendar.locale);
     const blockKey = `${label} - ${nextLabel}`;
 
     const isBlocked = typeof opts.isTimeBlocked === 'function'
       ? opts.isTimeBlocked(label, [activeDate])
-      : disabledTimes.includes(label) || isTimeBlockedByRules(calendar, activeDate, label);
+      : disabledTimes.includes(label) || isTimeBlockedByRules(calendar, activeDate, label, curH, curM);
 
     const btn = document.createElement('button');
     btn.type = 'button';
@@ -464,13 +467,15 @@ function _renderBlocksInto(
     const next = new Date(cur.getTime() + interval * 60000);
     if (next > end) break;
 
+    const curH = cur.getHours();
+    const curM = cur.getMinutes();
     const label = formatTime(cur, calendar.locale);
     const nextLabel = formatTime(next, calendar.locale);
     const blockKey = `${label} - ${nextLabel}`;
 
     const isBlocked = typeof opts.isTimeBlocked === 'function'
       ? opts.isTimeBlocked(label, [date])
-      : disabledTimes.includes(label) || isTimeBlockedByRules(calendar, date, label);
+      : disabledTimes.includes(label) || isTimeBlockedByRules(calendar, date, label, curH, curM);
 
     const btn = document.createElement('button');
     btn.type = 'button';
