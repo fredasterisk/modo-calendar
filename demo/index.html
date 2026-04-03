@@ -150,6 +150,26 @@
 						from: '08:00',
 						to: '18:00',
 						interval: 90,
+						disabledTimes: [
+							// Global lunch break
+							'12:00-13:00',
+							// Block Saturdays and Sundays in the morning
+							{
+								weekdays: ['sat', 'sun'],
+								times: ['08:00-10:00'],
+							},
+							// Disable every slot on a specific date range
+							{
+								from: '2025-07-04',
+								to: '2025-07-07',
+								time: 'all',
+							},
+							// Block two concrete dates with different slots
+							{
+								dates: ['2025-08-19'],
+								times: ['15:00-17:00'],
+							},
+						],
 					}),
 				],
 			});
@@ -203,10 +223,10 @@
 					presetsPlugin({
 						presets: [
 							presetRanges.today(),
-							presetRanges.last7Days(),
-							presetRanges.last30Days(),
-							presetRanges.thisMonth(),
+							presetRanges.next7Days(),
+							presetRanges.thisWeekend(),
 							presetRanges.nextWeek(),
+							presetRanges.nextMonth(),
 						],
 					}),
 				],

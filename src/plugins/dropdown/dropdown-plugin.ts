@@ -125,31 +125,80 @@ export function dropdownPlugin(options: DropdownPluginOptions = {}): CalendarPlu
           yearSelect.appendChild(opt);
         }
 
+        // Find which column this dropdown belongs to
+        const col = (labelEl as HTMLElement).closest('.mc-month-col');
+        const cols = Array.from(calendar.container!.querySelectorAll('.mc-month-col'));
+        const colIdx = col ? cols.indexOf(col) : 0;
+
+        const updateMonthOptions = () => {
+          if (!calendar.monthOffsets) return;
+          const baseMonth = calendar.date.getMonth();
+          const baseYear = calendar.date.getFullYear();
+          const selYear = Number(yearSelect.value);
+
+          // Compute absolute month for previous and next columns
+          let prevAbsolute = -Infinity;
+          if (colIdx > 0) {
+            prevAbsolute = baseYear * 12 + baseMonth + (colIdx - 1) + (calendar.monthOffsets[colIdx - 1] || 0);
+          }
+          let nextAbsolute = Infinity;
+          if (colIdx < calendar.monthOffsets.length - 1) {
+            nextAbsolute = baseYear * 12 + baseMonth + (colIdx + 1) + (calendar.monthOffsets[colIdx + 1] || 0);
+          }
+
+          // Disable months that would violate ordering
+          for (let m = 0; m < monthSelect.options.length; m++) {
+            const absMonth = selYear * 12 + m;
+            monthSelect.options[m].disabled = absMonth <= prevAbsolute || absMonth >= nextAbsolute;
+          }
+        };
+
         const handleChange = () => {
           const newMonth = Number(monthSelect.value);
           const newYear = Number(yearSelect.value);
-          // Calculate offset from calendar.date
           const baseMonth = calendar.date.getMonth();
           const baseYear = calendar.date.getFullYear();
-          const offset = (newYear - baseYear) * 12 + (newMonth - baseMonth);
 
-          // If months plugin, adjust offsets; otherwise set navigationOffset
           if (calendar.monthOffsets) {
-            // Find which column this dropdown belongs to
-            const col = (labelEl as HTMLElement).closest('.mc-month-col');
-            const cols = Array.from(calendar.container!.querySelectorAll('.mc-month-col'));
-            const colIdx = col ? cols.indexOf(col) : 0;
-            calendar.monthOffsets[colIdx] = offset - colIdx;
+            // Set offset for this column
+            const desiredAbsolute = (newYear - baseYear) * 12 + newMonth;
+            const defaultAbsolute = baseMonth + colIdx;
+            calendar.monthOffsets[colIdx] = desiredAbsolute - defaultAbsolute;
+
+            // Cascade: ensure each subsequent month is at least 1 month after the previous
+            for (let j = colIdx + 1; j < calendar.monthOffsets.length; j++) {
+              const prevAbs = baseMonth + (j - 1) + (calendar.monthOffsets[j - 1] || 0);
+              const curAbs = baseMonth + j + (calendar.monthOffsets[j] || 0);
+              if (curAbs <= prevAbs) {
+                calendar.monthOffsets[j] = prevAbs + 1 - (baseMonth + j);
+              }
+            }
+
+            // Cascade backward: ensure each preceding month is at least 1 month before
+            for (let j = colIdx - 1; j >= 0; j--) {
+              const nextAbs = baseMonth + (j + 1) + (calendar.monthOffsets[j + 1] || 0);
+              const curAbs = baseMonth + j + (calendar.monthOffsets[j] || 0);
+              if (curAbs >= nextAbs) {
+                calendar.monthOffsets[j] = nextAbs - 1 - (baseMonth + j);
+              }
+            }
           } else {
-            calendar.navigationOffset = offset;
+            calendar.date = new Date(newYear, newMonth, 1);
           }
+
           calendar.renderCalendar();
           calendar.updateDayClasses();
           calendar.emit('monthChanged', { date: new Date(newYear, newMonth, 1), direction: 'jump' });
         };
 
         monthSelect.addEventListener('change', handleChange);
-        yearSelect.addEventListener('change', handleChange);
+        yearSelect.addEventListener('change', () => {
+          updateMonthOptions();
+          handleChange();
+        });
+
+        // Initial disable pass
+        updateMonthOptions();
 
         wrapper.appendChild(monthSelect);
         wrapper.appendChild(yearSelect);

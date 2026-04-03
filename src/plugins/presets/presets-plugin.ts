@@ -4,6 +4,9 @@
 import type { CalendarPlugin, CalendarInstance } from '../../core/types';
 
 const presetsCSS = `
+.mc-presets-layout {
+  display: flex;
+}
 .mc-presets {
   display: flex;
   flex-direction: column;
@@ -11,7 +14,12 @@ const presetsCSS = `
   padding-right: 1rem;
   margin-right: 1rem;
   border-right: 1px solid var(--mc-border, #e2e8f0);
-  min-width: 120px;
+  min-width: 130px;
+  flex-shrink: 0;
+}
+.mc-presets-content {
+  flex: 1;
+  min-width: 0;
 }
 .mc-preset-btn {
   text-align: left;
@@ -20,31 +28,27 @@ const presetsCSS = `
   border-radius: 0.5rem;
   background: transparent;
   color: var(--mc-fg, #0f172a);
+  font-family: var(--mc-font, inherit);
   font-size: 0.8125rem;
   cursor: pointer;
   white-space: nowrap;
-  transition: background var(--mc-transition, 150ms ease);
+  transition: background var(--mc-transition, 150ms ease), color var(--mc-transition, 150ms ease);
 }
 .mc-preset-btn:hover {
   background: var(--mc-muted, #f1f5f9);
 }
 .mc-preset-btn--active {
-  background: var(--mc-accent, #2563eb);
+  background: var(--mc-accent, #2563eb) !important;
   color: var(--mc-accent-fg, #fff);
 }
 .mc-preset-btn:focus-visible {
   outline: 2px solid var(--mc-accent, #2563eb);
   outline-offset: 2px;
 }
-.mc-calendar--with-presets {
-  display: flex;
-}
-.mc-calendar--with-presets > .mc-months-wrapper,
-.mc-calendar--with-presets > .mc-days,
-.mc-calendar--with-presets > .mc-header {
-  flex: 1;
-}
 @media (max-width: 639px) {
+  .mc-presets-layout {
+    flex-direction: column;
+  }
   .mc-presets {
     flex-direction: row;
     flex-wrap: wrap;
@@ -55,9 +59,6 @@ const presetsCSS = `
     padding-bottom: 0.75rem;
     margin-bottom: 0.75rem;
     min-width: auto;
-  }
-  .mc-calendar--with-presets {
-    flex-direction: column;
   }
 }
 `;
@@ -102,16 +103,24 @@ export function presetsPlugin(options: PresetsPluginOptions): CalendarPlugin {
     onRender(calendar: CalendarInstance) {
       if (!calendar.container || calendar.mode !== 'range') return;
 
-      // Add flex layout class
-      calendar.container.classList.add('mc-calendar--with-presets');
-
       // Don't duplicate
       if (calendar.container.querySelector('.mc-presets')) return;
+
+      // Wrap existing calendar content in a content div, then wrap both in a flex layout
+      const layoutWrapper = document.createElement('div');
+      layoutWrapper.className = 'mc-presets-layout';
 
       const sidebar = document.createElement('div');
       sidebar.className = 'mc-presets';
       sidebar.setAttribute('role', 'listbox');
       sidebar.setAttribute('aria-label', 'Date presets');
+
+      // Move all existing children into a content wrapper
+      const contentWrapper = document.createElement('div');
+      contentWrapper.className = 'mc-presets-content';
+      while (calendar.container.firstChild) {
+        contentWrapper.appendChild(calendar.container.firstChild);
+      }
 
       options.presets.forEach((preset) => {
         const btn = document.createElement('button');
@@ -123,9 +132,9 @@ export function presetsPlugin(options: PresetsPluginOptions): CalendarPlugin {
         // Check if this preset is currently active
         const [pStart, pEnd] = preset.dates();
         if (
-          calendar.selectedDates.length === 2 &&
-          _sameDay(calendar.selectedDates[0], pStart) &&
-          _sameDay(calendar.selectedDates[1], pEnd)
+          calendar.startDate && calendar.endDate &&
+          _sameDay(calendar.startDate, pStart) &&
+          _sameDay(calendar.endDate, pEnd)
         ) {
           btn.classList.add('mc-preset-btn--active');
           btn.setAttribute('aria-selected', 'true');
@@ -134,7 +143,14 @@ export function presetsPlugin(options: PresetsPluginOptions): CalendarPlugin {
         btn.addEventListener('click', (e) => {
           e.stopPropagation();
           const [start, end] = preset.dates();
-          calendar.selectedDates = [start, end];
+
+          // Navigate calendar to the start month so user can see the range
+          calendar.date = new Date(start.getFullYear(), start.getMonth(), 1);
+
+          // Set range using the proper range API
+          calendar.startDate = start;
+          calendar.endDate = end;
+          calendar.hoverDate = null;
           calendar.updateButtonLabel();
           calendar.renderCalendar();
           calendar.updateDayClasses();
@@ -145,7 +161,9 @@ export function presetsPlugin(options: PresetsPluginOptions): CalendarPlugin {
         sidebar.appendChild(btn);
       });
 
-      calendar.container.prepend(sidebar);
+      layoutWrapper.appendChild(sidebar);
+      layoutWrapper.appendChild(contentWrapper);
+      calendar.container.appendChild(layoutWrapper);
     },
   };
 }
@@ -165,28 +183,42 @@ export const presetRanges = {
       label: "Aujourd'hui",
       dates: () => {
         const d = new Date();
-        return [d, d];
+        d.setHours(0, 0, 0, 0);
+        return [d, new Date(d)];
       },
     };
   },
-  last7Days(): PresetRange {
+  tomorrow(): PresetRange {
     return {
-      label: '7 derniers jours',
+      label: 'Demain',
       dates: () => {
-        const end = new Date();
+        const d = new Date();
+        d.setDate(d.getDate() + 1);
+        d.setHours(0, 0, 0, 0);
+        return [d, new Date(d)];
+      },
+    };
+  },
+  next7Days(): PresetRange {
+    return {
+      label: '7 prochains jours',
+      dates: () => {
         const start = new Date();
-        start.setDate(start.getDate() - 6);
+        start.setHours(0, 0, 0, 0);
+        const end = new Date(start);
+        end.setDate(end.getDate() + 6);
         return [start, end];
       },
     };
   },
-  last30Days(): PresetRange {
+  next30Days(): PresetRange {
     return {
-      label: '30 derniers jours',
+      label: '30 prochains jours',
       dates: () => {
-        const end = new Date();
         const start = new Date();
-        start.setDate(start.getDate() - 29);
+        start.setHours(0, 0, 0, 0);
+        const end = new Date(start);
+        end.setDate(end.getDate() + 29);
         return [start, end];
       },
     };
@@ -202,6 +234,17 @@ export const presetRanges = {
       },
     };
   },
+  nextMonth(): PresetRange {
+    return {
+      label: 'Mois prochain',
+      dates: () => {
+        const now = new Date();
+        const start = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+        const end = new Date(now.getFullYear(), now.getMonth() + 2, 0);
+        return [start, end];
+      },
+    };
+  },
   nextWeek(): PresetRange {
     return {
       label: 'Semaine prochaine',
@@ -211,10 +254,34 @@ export const presetRanges = {
         const daysUntilMonday = ((8 - dayOfWeek) % 7) || 7;
         const start = new Date(now);
         start.setDate(now.getDate() + daysUntilMonday);
+        start.setHours(0, 0, 0, 0);
         const end = new Date(start);
         end.setDate(start.getDate() + 6);
         return [start, end];
       },
     };
+  },
+  thisWeekend(): PresetRange {
+    return {
+      label: 'Ce weekend',
+      dates: () => {
+        const now = new Date();
+        const dayOfWeek = now.getDay();
+        const daysUntilSat = ((6 - dayOfWeek) + 7) % 7 || 7;
+        const start = new Date(now);
+        start.setDate(now.getDate() + daysUntilSat);
+        start.setHours(0, 0, 0, 0);
+        const end = new Date(start);
+        end.setDate(start.getDate() + 1);
+        return [start, end];
+      },
+    };
+  },
+  // Legacy aliases (backward-compat)
+  last7Days(): PresetRange {
+    return { ...presetRanges.next7Days(), label: '7 prochains jours' };
+  },
+  last30Days(): PresetRange {
+    return { ...presetRanges.next30Days(), label: '30 prochains jours' };
   },
 };
