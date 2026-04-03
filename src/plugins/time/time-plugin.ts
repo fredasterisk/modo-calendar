@@ -5,6 +5,7 @@
 
 import pluginStyles from './styles.css?raw';
 import type { CalendarPlugin, CalendarInstance, TimeSlot } from '../../core/types';
+import type { LockRule, DateEffect } from '../lock/lock-plugin';
 import { formatTime, formatDateDisplay } from '../../core/i18n';
 import { animateSelect, staggerFadeIn } from '../../core/animations';
 import { createSpinner } from './spinner';
@@ -32,6 +33,50 @@ function getDateKey(d: Date): number {
   const dt = new Date(d);
   dt.setUTCHours(0, 0, 0, 0);
   return dt.getTime();
+}
+
+/** Check if a time label ("HH:MM") is blocked by lock rules for a given date. */
+function isTimeBlockedByRules(calendar: CalendarInstance, date: Date, timeLabel: string): boolean {
+  const rules = calendar._lockRules as LockRule[] | undefined;
+  if (!rules?.length) return false;
+
+  // Lazy-load getDateEffect to avoid circular import at module level
+  let getDateEffect: ((rules: LockRule[], date: Date) => DateEffect) | undefined;
+  try {
+    const lockPlugin = calendar.plugins?.find((p) => p.name === 'lock');
+    if (!lockPlugin) return false;
+    // Access exported function via dynamic lookup on the instance
+    getDateEffect = calendar._getDateEffect as typeof getDateEffect;
+  } catch {
+    return false;
+  }
+  if (!getDateEffect) return false;
+
+  const effect = getDateEffect(rules, date);
+  if (effect.blockAllTimes) return true;
+  if (!effect.blockedTimes.length) return false;
+
+  // Parse the time label (e.g. "08:00")
+  const timeMins = _parseTimeToMinutes(timeLabel);
+  if (timeMins === null) return false;
+
+  for (const rule of effect.blockedTimes) {
+    // Range format: "HH:MM-HH:MM"
+    if (rule.includes('-')) {
+      const [start, end] = rule.split('-').map(_parseTimeToMinutes);
+      if (start !== null && end !== null && timeMins >= start && timeMins < end) return true;
+    } else {
+      // Exact match: "HH:MM"
+      if (_parseTimeToMinutes(rule) === timeMins) return true;
+    }
+  }
+  return false;
+}
+
+function _parseTimeToMinutes(t: string): number | null {
+  const m = t.match(/^(\d{1,2}):(\d{2})$/);
+  if (!m) return null;
+  return Number(m[1]) * 60 + Number(m[2]);
 }
 
 export interface TimePluginOptions {
@@ -238,7 +283,7 @@ function _renderBlocks(
 
     const isBlocked = typeof opts.isTimeBlocked === 'function'
       ? opts.isTimeBlocked(label, [activeDate])
-      : disabledTimes.includes(label);
+      : disabledTimes.includes(label) || isTimeBlockedByRules(calendar, activeDate, label);
 
     const btn = document.createElement('button');
     btn.type = 'button';
@@ -425,7 +470,7 @@ function _renderBlocksInto(
 
     const isBlocked = typeof opts.isTimeBlocked === 'function'
       ? opts.isTimeBlocked(label, [date])
-      : disabledTimes.includes(label);
+      : disabledTimes.includes(label) || isTimeBlockedByRules(calendar, date, label);
 
     const btn = document.createElement('button');
     btn.type = 'button';

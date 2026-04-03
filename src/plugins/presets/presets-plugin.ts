@@ -284,6 +284,22 @@ export const presetRanges = {
       },
     };
   },
+  nextWeekend(): PresetRange {
+    return {
+      label: 'Weekend prochain',
+        dates: () => {
+        const now = new Date();
+        const dayOfWeek = now.getDay();
+        const daysUntilNextSat = ((6 - dayOfWeek) + 7) % 7 + 7;
+        const start = new Date(now);
+        start.setDate(now.getDate() + daysUntilNextSat);
+        start.setHours(0, 0, 0, 0);
+        const end = new Date(start);
+        end.setDate(start.getDate() + 1);
+        return [start, end];
+      }
+    };
+  },
   // Legacy aliases (backward-compat)
   last7Days(): PresetRange {
     return { ...presetRanges.next7Days(), label: '7 prochains jours' };

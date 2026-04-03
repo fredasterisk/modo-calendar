@@ -26,7 +26,7 @@ export { localeFR, localeEN, registerLocale, getLocale } from './core/i18n';
 
 // Plugins
 export { lockPlugin } from './plugins/lock/lock-plugin';
-export type { LockPluginOptions } from './plugins/lock/lock-plugin';
+export type { LockPluginOptions, LockRule, Weekday, DateEffect } from './plugins/lock/lock-plugin';
 
 export { monthsPlugin } from './plugins/months/months-plugin';
 export type { MonthsPluginOptions } from './plugins/months/months-plugin';

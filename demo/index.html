@@ -40,7 +40,7 @@
 
 			<!-- 2. Date + heure -->
 			<section class="space-y-2">
-				<h2 class="text-sm font-semibold text-slate-500 uppercase tracking-wide">2. Date + heure (blocks)</h2>
+				<h2 class="text-sm font-semibold text-slate-500 uppercase tracking-wide">2. Date + heure (blocks + lock rules)</h2>
 				<button id="datepicker-single-time" type="button"
 					class="flex items-center gap-3 min-w-[200px] max-w-[340px] bg-white border border-slate-200 rounded-lg px-3 pt-2 pb-1.5 text-left cursor-pointer hover:border-slate-400 transition-colors shadow-sm">
 					<svg class="w-5 h-5 text-slate-600 shrink-0" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M9 1V3H15V1H17V3H21C21.5523 3 22 3.44772 22 4V20C22 20.5523 21.5523 21 21 21H3C2.44772 21 2 20.5523 2 20V4C2 3.44772 2.44772 3 3 3H7V1H9ZM20 11H4V19H20V11ZM11 13V17H6V13H11ZM7 5H4V9H20V5H17V7H15V5H9V7H7V5Z"></path></svg>
@@ -53,7 +53,7 @@
 
 			<!-- 3. Plage de dates -->
 			<section class="space-y-2">
-				<h2 class="text-sm font-semibold text-slate-500 uppercase tracking-wide">3. Plage de dates (2 mois, lock, min 2 / max 14 nuits)</h2>
+				<h2 class="text-sm font-semibold text-slate-500 uppercase tracking-wide">3. Plage de dates (2 mois, lock rules, min 2 / max 14 nuits)</h2>
 				<button id="datepicker-range" type="button"
 					class="flex items-center gap-3 min-w-[200px] max-w-[340px] bg-white border border-slate-200 rounded-lg px-3 pt-2 pb-1.5 text-left cursor-pointer hover:border-slate-400 transition-colors shadow-sm">
 					<svg class="w-5 h-5 text-slate-600 shrink-0" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M9 1V3H15V1H17V3H21C21.5523 3 22 3.44772 22 4V20C22 20.5523 21.5523 21 21 21H3C2.44772 21 2 20.5523 2 20V4C2 3.44772 2.44772 3 3 3H7V1H9ZM20 11H4V19H20V11ZM11 13V17H6V13H11ZM7 5H4V9H20V5H17V7H15V5H9V7H7V5Z"></path></svg>
@@ -141,40 +141,32 @@
 				mode: 'single',
 			});
 
-			// 2. Date + heure (blocks)
+			// 2. Date + heure (blocks) with lock rules for time blocking
 			new ModoCalendar({
 				trigger: '#datepicker-single-time',
 				mode: 'single',
 				plugins: [
+					lockPlugin({
+						rules: [
+							// Global lunch break (every day)
+							{ weekdays: ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'], blocked: false, blockedTimes: ['12:00-13:30'] },
+							// Saturdays & Sundays: block morning slots
+							{ weekdays: ['sat', 'sun'], blocked: false, blockedTimes: ['08:00-10:00'] },
+							// Block ALL time on a specific date range (e.g. holidays)
+							{ from: '2026-07-04', to: '2026-07-07', blockAllTimes: true, blocked: false },
+							// Block specific slots on a concrete date
+							{ dates: ['2026-08-19'], blocked: false, blockedTimes: ['15:00-17:00'] },
+						],
+					}),
 					timePlugin({
 						from: '08:00',
 						to: '18:00',
 						interval: 90,
-						disabledTimes: [
-							// Global lunch break
-							'12:00-13:00',
-							// Block Saturdays and Sundays in the morning
-							{
-								weekdays: ['sat', 'sun'],
-								times: ['08:00-10:00'],
-							},
-							// Disable every slot on a specific date range
-							{
-								from: '2025-07-04',
-								to: '2025-07-07',
-								time: 'all',
-							},
-							// Block two concrete dates with different slots
-							{
-								dates: ['2025-08-19'],
-								times: ['15:00-17:00'],
-							},
-						],
 					}),
 				],
 			});
 
-			// 3. Plage de dates (2 mois + lock + validation)
+			// 3. Plage de dates (2 mois + lock rules + validation)
 			new ModoCalendar({
 				trigger: '#datepicker-range',
 				mode: 'range',
@@ -183,9 +175,20 @@
 				plugins: [
 					monthsPlugin({ months: 2 }),
 					lockPlugin({
-						blockedDates: ['2025-06-20', '2025-06-24'],
-						noRangeStartDates: ['2025-06-22'],
-						noRangeEndDates: ['2025-06-23'],
+						rules: [
+							// Block specific dates
+							{ dates: ['2026-04-20', '2026-04-24'], blocked: true },
+							// Block all Sundays
+							{ weekdays: ['sun'], blocked: true },
+							// Block every Tuesday from April 1–30 2026
+							{ from: '2026-04-01', to: '2026-04-30', weekdays: ['tue'], blocked: true },
+							// Can book over but can't check-in on this date
+							{ dates: ['2026-04-22'], blocked: false, noCheckin: true },
+							// Can book over but can't check-out on this date
+							{ dates: ['2026-04-23'], blocked: false, noCheckout: true },
+							// Block a full week (holiday period)
+							{ from: '2026-05-25', to: '2026-05-31', blocked: true },
+						],
 					}),
 				],
 			});
@@ -225,6 +228,7 @@
 							presetRanges.today(),
 							presetRanges.next7Days(),
 							presetRanges.thisWeekend(),
+							presetRanges.nextWeekend(),
 							presetRanges.nextWeek(),
 							presetRanges.nextMonth(),
 						],
