@@ -134,10 +134,6 @@
   letter-spacing: 0.025em;
 }
 
-.mc-time-section-panel {
-  /* container for blocks or spinner inside a range section */
-}
-
 @media (max-width: 639px) {
   .mc-time-range {
     flex-direction: column;
