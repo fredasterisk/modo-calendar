@@ -1,19 +1,23 @@
 # ModoCalendar
 
-A modern, lightweight, and extensible calendar/date-picker component for the web. Supports single, range, and multiple date selection, with plugin support for advanced features (multi-month, time blocks, etc). Styles are encapsulated in Shadow DOM for robust theming.
+A modern, zero-dependency date picker for the web. TypeScript-first, plugin-based, Shadow DOM encapsulated.
+
+Supports single, range, and multiple date selection with advanced features like time slots, date/time blocking rules, multi-month views, preset ranges, dropdowns, and i18n — all through a clean plugin architecture.
 
 ## Features
 
-- **Single, range, and multiple date selection**
-- **Plugin system** (easily add months, time, etc)
-- **Shadow DOM encapsulation** for styles
-- **Keyboard and mouse navigation**
-- **Customizable via CSS and JS**
-- **Lightweight, no dependencies**
-
-## Demo
-
-See the [`demo/index.html`](demo/index.html) for usage examples and visual tests.
+- **Three selection modes** — single, range (with min/max nights), multiple (with max count)
+- **Plugin system** — compose only what you need: months, time, lock, presets, dropdown, i18n
+- **Lock rules engine** — flexible date & time blocking: individual dates, ranges, recurring weekdays, combined filters, checkin/checkout restrictions, time slot blocking
+- **Time selection** — block grid or spinner picker, per-date time slots, lock-rules integration
+- **Shadow DOM** — styles fully encapsulated, no CSS conflicts
+- **Reactive state** — Proxy-based auto-sync, batch updates
+- **Animations & gestures** — swipe navigation, staggered fade-in, selection animations
+- **Keyboard navigation** — full arrow-key, Enter, Escape support
+- **i18n** — locale-aware formatting, runtime locale switching
+- **CSS custom properties** — fully themeable via `--mc-*` variables
+- **BEM class overrides** — `classNames` API for custom styling slots
+- **Zero dependencies** — ~22 kB gzipped (ESM)
 
 ## Installation
 
@@ -21,122 +25,297 @@ See the [`demo/index.html`](demo/index.html) for usage examples and visual tests
 npm install modo-calendar
 ```
 
-Or simply copy the `src/` folder into your project.
+## Quick Start
 
-## Usage
+```ts
+import { ModoCalendar } from 'modo-calendar';
 
-```js
-import {
-	ModoCalendar,
-	timePlugin,
-	monthsPlugin,
-	lockPlugin,
-} from 'modo-calendar';
-
-const calendar = new ModoCalendar({
-	trigger: '#calendar-btn',
-	mode: 'range',
-	plugins: [
-		monthsPlugin({ months: 2 }),
-		timePlugin({ from: '08:00', to: '18:00' }),
-		lockPlugin({ blockedDates: ['2025-06-20'] }),
-	],
+new ModoCalendar({
+  trigger: '#datepicker',
+  mode: 'single',
 });
 ```
 
-Or use directly in HTML:
+## Modes
 
-```html
-<script src="src/index.js"></script>
-<script>
-	const calendar = new ModoCalendar({
-		trigger: '#calendar-btn',
-		mode: 'single',
-		plugins: [lockPlugin({ blockedDates: ['2025-06-20'] })],
-	});
-</script>
+### Single date
+
+```ts
+new ModoCalendar({
+  trigger: '#picker',
+  mode: 'single',
+});
+```
+
+### Date range
+
+```ts
+import { ModoCalendar, monthsPlugin } from 'modo-calendar';
+
+new ModoCalendar({
+  trigger: '#picker',
+  mode: 'range',
+  minRangeNights: 2,
+  maxRangeNights: 14,
+  plugins: [monthsPlugin({ months: 2 })],
+});
+```
+
+### Multiple dates
+
+```ts
+new ModoCalendar({
+  trigger: '#picker',
+  mode: 'multiple',
+  maxMultipleDates: 5,
+});
 ```
 
 ## Plugins
 
-- **monthsPlugin**: Display multiple months side by side.
-- **timePlugin**: Add time block selection below the calendar.
-- **lockPlugin**: Gère le blocage de dates, l'interdiction de début/fin de plage, et fournit un feedback visuel robuste pour toutes les sélections interdites.
+### `monthsPlugin`
 
-### lockPlugin
+Display multiple months side by side.
 
-Le plugin `lockPlugin` permet de :
+```ts
+import { monthsPlugin } from 'modo-calendar';
 
-- Bloquer certaines dates (empêche toute sélection)
-- Interdire qu'une date soit le début d'une plage (`noRangeStartDates`)
-- Interdire qu'une date soit la fin d'une plage (`noRangeEndDates`)
-- Fournir un retour visuel immédiat (CSS `.blocked`, `.no-range-start`, `.no-range-end`, `.denied`)
-- Gérer tous les cas de sélection (simple, plage, multiples, hover, edge cases)
-- Fonctionne en UTC pour éviter les problèmes de fuseau
+monthsPlugin({ months: 2 });
+```
 
-**Options** :
+### `timePlugin`
 
-```js
+Add time slot selection (block grid or spinner).
+
+```ts
+import { timePlugin } from 'modo-calendar';
+
+// Block grid: 90-minute slots from 08:00 to 18:00
+timePlugin({
+  from: '08:00',
+  to: '18:00',
+  interval: 90,
+  pickerType: 'blocks', // default
+});
+
+// Spinner: hour/minute wheels with 15-min steps
+timePlugin({
+  pickerType: 'spinner',
+  minuteStep: 15,
+});
+```
+
+| Option          | Type                       | Default    | Description                     |
+| --------------- | -------------------------- | ---------- | ------------------------------- |
+| `from`          | `string`                   | `'08:00'`  | Start time (HH:MM)              |
+| `to`            | `string`                   | `'16:00'`  | End time (HH:MM)                |
+| `interval`      | `number`                   | `60`       | Block duration in minutes       |
+| `pickerType`    | `'blocks' \| 'spinner'`    | `'blocks'` | Picker UI type                  |
+| `minuteStep`    | `number`                   | `5`        | Minute increment for spinner    |
+| `disabledTimes` | `string[]`                 | `[]`       | Statically disabled time labels |
+| `isTimeBlocked` | `(time, dates) => boolean` | —          | Custom blocking callback        |
+
+### `lockPlugin`
+
+Flexible date & time blocking with a rules engine. Rules are evaluated in order and effects accumulate.
+
+```ts
+import { lockPlugin } from 'modo-calendar';
+
 lockPlugin({
-	blockedDates: ['2025-06-20', '2025-06-24'], // Dates interdites (format YYYY-MM-DD ou timestamp)
-	noRangeStartDates: ['2025-06-22'], // Interdit de commencer une plage sur ces dates
-	noRangeEndDates: ['2025-06-23'], // Interdit de finir une plage sur ces dates
+  rules: [
+    // Block specific dates
+    { dates: ['2026-04-20', '2026-04-24'], blocked: true },
+
+    // Block every Sunday
+    { weekdays: ['sun'], blocked: true },
+
+    // Block Tuesdays only in April 2026
+    { from: '2026-04-01', to: '2026-04-30', weekdays: ['tue'], blocked: true },
+
+    // Allow booking over, but no check-in
+    { dates: ['2026-04-22'], blocked: false, noCheckin: true },
+
+    // Allow booking over, but no check-out
+    { dates: ['2026-04-23'], blocked: false, noCheckout: true },
+
+    // Block a holiday period
+    { from: '2026-05-25', to: '2026-05-31', blocked: true },
+
+    // Block lunch time slots every day
+    {
+      weekdays: ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'],
+      blocked: false,
+      blockedTimes: ['12:00-13:30'],
+    },
+
+    // Block morning slots on weekends
+    { weekdays: ['sat', 'sun'], blocked: false, blockedTimes: ['08:00-10:00'] },
+
+    // Block ALL time slots on specific dates
+    {
+      from: '2026-07-04',
+      to: '2026-07-07',
+      blockAllTimes: true,
+      blocked: false,
+    },
+  ],
 });
 ```
 
-**Exemple d'utilisation** :
+#### Rule selectors
 
-```js
-import { ModoCalendar, lockPlugin } from 'modo-calendar';
-const calendar = new ModoCalendar({
-	trigger: '#calendar-btn',
-	mode: 'range',
-	plugins: [
-		lockPlugin({
-			blockedDates: ['2025-06-20', '2025-06-24'],
-			noRangeStartDates: ['2025-06-22'],
-			noRangeEndDates: ['2025-06-23'],
-		}),
-	],
+| Property   | Type                 | Description                                                                                      |
+| ---------- | -------------------- | ------------------------------------------------------------------------------------------------ |
+| `dates`    | `(string \| Date)[]` | Match specific dates (YYYY-MM-DD)                                                                |
+| `from`     | `string \| Date`     | Range start (inclusive)                                                                          |
+| `to`       | `string \| Date`     | Range end (inclusive)                                                                            |
+| `weekdays` | `Weekday[]`          | Recurring weekdays (`'mon'`–`'sun'`). Combined with `from`/`to` to match weekdays within a range |
+
+#### Rule effects
+
+| Property        | Type       | Default  | Description                                                  |
+| --------------- | ---------- | -------- | ------------------------------------------------------------ |
+| `blocked`       | `boolean`  | `true`\* | Fully block the day (unclickable, hatched)                   |
+| `noCheckin`     | `boolean`  | `false`  | Prevent starting a range on this day                         |
+| `noCheckout`    | `boolean`  | `false`  | Prevent ending a range on this day                           |
+| `blockedTimes`  | `string[]` | `[]`     | Block time slots (`'HH:MM-HH:MM'` ranges or `'HH:MM'` exact) |
+| `blockAllTimes` | `boolean`  | `false`  | Block all time slots on matching days                        |
+
+\* If no effect is specified, `blocked: true` is implied.
+
+#### Runtime API
+
+```ts
+const cal = new ModoCalendar({ ... });
+
+// Replace all rules
+cal.setLockRules(newRules);
+
+// Legacy API (still supported)
+cal.setBlockedDates(['2026-06-20']);
+cal.setNoRangeStartDates(['2026-06-22']);
+cal.setNoRangeEndDates(['2026-06-23']);
+```
+
+### `presetsPlugin`
+
+Sidebar with quick-select preset date ranges.
+
+```ts
+import { presetsPlugin, presetRanges } from 'modo-calendar';
+
+presetsPlugin({
+  presets: [
+    presetRanges.today(),
+    presetRanges.next7Days(),
+    presetRanges.thisWeekend(),
+    presetRanges.nextWeekend(),
+    presetRanges.nextWeek(),
+    presetRanges.nextMonth(),
+  ],
 });
 ```
 
-**API dynamique** :
+### `dropdownPlugin`
 
-- `calendar.setBlockedDates(dates)`
-- `calendar.setNoRangeStartDates(dates)`
-- `calendar.setNoRangeEndDates(dates)`
+Month and year dropdown selectors in the calendar header.
 
-Chaque modification met à jour l'affichage et bloque les sélections interdites en temps réel.
+```ts
+import { dropdownPlugin } from 'modo-calendar';
 
-## API
+dropdownPlugin({ yearRange: [2024, 2027] });
+```
 
-- `new ModoCalendar(options)` — create a calendar instance.
-- `calendar.setRange(start, end)` — set selected range.
-- `calendar.setBlockedDates(dates)` — block specific dates.
-- `calendar.setNoRangeStartDates(dates)` — block range starts.
-- `calendar.setNoRangeEndDates(dates)` — block range ends.
-- `calendar.addPlugin(plugin)` — add a plugin at runtime.
+### `i18nPlugin`
+
+Runtime locale switching with custom formatting.
+
+```ts
+import { i18nPlugin } from 'modo-calendar';
+
+const i18n = i18nPlugin({
+  locales: {
+    fr: {
+      locale: 'fr-FR',
+      weekStartsOn: 1,
+      placeholder: 'Choisir une date...',
+    },
+    en: { locale: 'en-US', weekStartsOn: 0, placeholder: 'Pick a date...' },
+  },
+  initialLocale: 'fr',
+});
+
+// Switch at runtime
+i18n.setLocale('en');
+```
 
 ## Options
 
-- `trigger`: CSS selector or DOM element to attach the calendar to.
-- `mode`: `'single' | 'range' | 'multiple'`
-- `inline`: `false` or CSS selector for inline mode.
-- `format`: function for display formatting.
-- `plugins`: array of plugins (e.g. `monthsPlugin`, `timePlugin`, `lockPlugin`)
+| Option               | Type                                | Default   | Description                          |
+| -------------------- | ----------------------------------- | --------- | ------------------------------------ |
+| `trigger`            | `string \| HTMLElement`             | —         | CSS selector or element to attach to |
+| `mode`               | `'single' \| 'range' \| 'multiple'` | `'range'` | Selection mode                       |
+| `inline`             | `string \| boolean`                 | `false`   | Inline mode (CSS selector or `true`) |
+| `locale`             | `string`                            | `'fr-FR'` | Locale for formatting                |
+| `plugins`            | `CalendarPlugin[]`                  | `[]`      | Array of plugins                     |
+| `minDate`            | `string \| Date`                    | —         | Earliest selectable date             |
+| `maxDate`            | `string \| Date`                    | —         | Latest selectable date               |
+| `minRangeNights`     | `number`                            | —         | Minimum nights for range mode        |
+| `maxRangeNights`     | `number`                            | —         | Maximum nights for range mode        |
+| `maxMultipleDates`   | `number`                            | —         | Max selections in multiple mode      |
+| `classNames`         | `CalendarClassNames`                | `{}`      | BEM class overrides per slot         |
+| `showStatusMessages` | `boolean`                           | `true`    | Show validation feedback messages    |
+| `hiddenInput`        | `HTMLInputElement`                  | —         | Custom hidden input for form data    |
+
+## Events
+
+```ts
+const cal = new ModoCalendar({ ... });
+
+cal.on('dateSelected', ({ date, mode }) => { ... });
+cal.on('dateDeselected', ({ date, mode }) => { ... });
+cal.on('rangeSelected', ({ start, end }) => { ... });
+cal.on('calendarOpen', () => { ... });
+cal.on('calendarClose', () => { ... });
+```
+
+## Theming
+
+All styles use CSS custom properties with `--mc-` prefix:
+
+```css
+:root {
+  --mc-accent: #2563eb;
+  --mc-accent-fg: #fff;
+  --mc-bg: #fff;
+  --mc-fg: #0f172a;
+  --mc-muted: #f1f5f9;
+  --mc-border: #e2e8f0;
+  --mc-danger: #ef4444;
+  --mc-cell-radius: 0.5rem;
+  --mc-font: 'Inter', system-ui, sans-serif;
+  --mc-transition: 150ms ease;
+}
+```
 
 ## Development
 
-- Source: [`src/`](src/)
-- Plugins: [`src/plugins/`](src/plugins/)
-- Styles: [`src/core/styles.css`](src/core/styles.css)
-- Demo: [`demo/`](demo/)
+```bash
+npm run dev       # Vite dev server
+npm run build     # Production build (ESM + UMD)
+npm run preview   # Preview production build
+```
+
+- Source: `src/`
+- Plugins: `src/plugins/`
+- Core styles: `src/core/styles.css`
+- Demo: `demo/index.html`
 
 ## License
 
-MIT License. See [LICENSE](LICENSE) for details.
+MIT
 
 ---
 
-© 2025 ModoCalendar contributors.
+© 2026 ModoCalendar
