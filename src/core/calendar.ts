@@ -744,7 +744,11 @@ export class ModoCalendar extends EventEmitter implements CalendarInstance {
       this.updateHiddenInput();
       this.emit('rangeSelected', { start: rangeStart, end: rangeEnd });
 
-      if (!this.options.inline && this.container) {
+      // If time plugin is present, re-render to show time pickers instead of closing
+      const hasTimePlugin = this.plugins?.some((p) => p.name === 'timePlugin');
+      if (hasTimePlugin) {
+        this.renderCalendar();
+      } else if (!this.options.inline && this.container) {
         animateClose(this.container);
       }
       return;

@@ -203,6 +203,12 @@
 						pickerType: 'spinner',
 						minuteStep: 15,
 					}),
+					lockPlugin({
+						rules: [
+							// Block specific time slots on a concrete date
+							{ dates: ['2026-05-05'], blockedTimes: ['09:00-09:30', '14:00-14:30'] },
+						],
+					}),
 				],
 			});
 

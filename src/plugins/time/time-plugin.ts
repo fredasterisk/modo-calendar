@@ -130,9 +130,9 @@ export function timePlugin(options: TimePluginOptions = {}): CalendarPlugin {
           }
         }
 
-        if (mode === 'range' && selectedDates.length === 2) {
-          const startKey = getDateKey(selectedDates[0]);
-          const endKey = getDateKey(selectedDates[1]);
+        if (mode === 'range' && calendar.startDate && calendar.endDate) {
+          const startKey = getDateKey(calendar.startDate);
+          const endKey = getDateKey(calendar.endDate);
           if (calendar.hiddenInput) {
             calendar.hiddenInput.value = JSON.stringify({
               mode: 'range',
@@ -167,7 +167,7 @@ export function timePlugin(options: TimePluginOptions = {}): CalendarPlugin {
       const originalUpdateButtonLabel = calendar.updateButtonLabel.bind(calendar);
       calendar.updateButtonLabel = function () {
         const activeDate =
-          calendar._timePluginState?._lastDateClicked || calendar.selectedDates?.[0];
+          calendar._timePluginState?._lastDateClicked || calendar.startDate || calendar.selectedDates?.[0];
         if (!activeDate) {
           originalUpdateButtonLabel();
           return;
@@ -178,13 +178,13 @@ export function timePlugin(options: TimePluginOptions = {}): CalendarPlugin {
         const labelDiv = calendar.trigger?.querySelector('.dates') as HTMLElement | null;
 
         if (block && labelDiv) {
-          if (calendar.mode === 'range' && calendar.selectedDates.length === 2) {
-            const startKey = getDateKey(calendar.selectedDates[0]);
-            const endKey = getDateKey(calendar.selectedDates[1]);
+          if (calendar.mode === 'range' && calendar.startDate && calendar.endDate) {
+            const startKey = getDateKey(calendar.startDate);
+            const endKey = getDateKey(calendar.endDate);
             const arrivalTime = times[startKey];
             const departureTime = times[endKey];
-            const startLabel = formatDateDisplay(calendar.selectedDates[0], calendar.locale);
-            const endLabel = formatDateDisplay(calendar.selectedDates[1], calendar.locale);
+            const startLabel = formatDateDisplay(calendar.startDate, calendar.locale);
+            const endLabel = formatDateDisplay(calendar.endDate, calendar.locale);
             const arr = arrivalTime ? ` · ${arrivalTime}` : '';
             const dep = departureTime ? ` · ${departureTime}` : '';
             labelDiv.textContent = `${startLabel}${arr} → ${endLabel}${dep}`;
@@ -233,7 +233,7 @@ export function timePlugin(options: TimePluginOptions = {}): CalendarPlugin {
       panel.innerHTML = '';
 
       // Range mode: show arrival/departure labels
-      if (calendar.mode === 'range' && calendar.selectedDates.length === 2) {
+      if (calendar.mode === 'range' && calendar.startDate && calendar.endDate) {
         _renderRangeTimePickers(calendar, panel, times);
         return;
       }
@@ -396,8 +396,8 @@ function _renderRangeTimePickers(
 ): void {
   const opts = (calendar.plugins?.find((p) => p.name === 'timePlugin')?.options || {}) as TimePluginOptions;
   const pickerType = opts.pickerType || 'blocks';
-  const startDate = calendar.selectedDates[0];
-  const endDate = calendar.selectedDates[1];
+  const startDate = calendar.startDate!;
+  const endDate = calendar.endDate!;
   const startKey = getDateKey(startDate);
   const endKey = getDateKey(endDate);
 

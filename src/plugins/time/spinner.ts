@@ -47,6 +47,8 @@ export function createSpinner(opts: SpinnerOptions): HTMLElement {
     opts.onChange(value);
   }
 
+  const wrapMax = max - ((max - min) % step);
+
   upBtn.addEventListener('click', (e) => {
     e.stopPropagation();
     update(value + step > max ? min : value + step);
@@ -54,7 +56,7 @@ export function createSpinner(opts: SpinnerOptions): HTMLElement {
 
   downBtn.addEventListener('click', (e) => {
     e.stopPropagation();
-    update(value - step < min ? max : value - step);
+    update(value - step < min ? wrapMax : value - step);
   });
 
   // Keyboard support on the display
@@ -64,7 +66,7 @@ export function createSpinner(opts: SpinnerOptions): HTMLElement {
       update(value + step > max ? min : value + step);
     } else if (e.key === 'ArrowDown' || e.key === 'ArrowLeft') {
       e.preventDefault();
-      update(value - step < min ? max : value - step);
+      update(value - step < min ? wrapMax : value - step);
     }
   });
 
@@ -74,7 +76,7 @@ export function createSpinner(opts: SpinnerOptions): HTMLElement {
     (e) => {
       e.preventDefault();
       if (e.deltaY < 0) update(value + step > max ? min : value + step);
-      else update(value - step < min ? max : value - step);
+      else update(value - step < min ? wrapMax : value - step);
     },
     { passive: false },
   );
