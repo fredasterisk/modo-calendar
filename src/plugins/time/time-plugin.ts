@@ -172,12 +172,33 @@ export function timePlugin(options: TimePluginOptions = {}): CalendarPlugin {
           originalUpdateButtonLabel();
           return;
         }
-        const key = getDateKey(activeDate);
         const times = calendar._timePluginState?.selectedTimes || {};
-        const block = times[key];
         const labelDiv = calendar.trigger?.querySelector('.dates') as HTMLElement | null;
+        if (!labelDiv) { originalUpdateButtonLabel(); return; }
 
-        if (block && labelDiv) {
+        // Multiple mode: show all dates with their times
+        if (calendar.mode === 'multiple' && calendar.selectedDates.length > 0) {
+          const anyTime = calendar.selectedDates.some((d) => times[getDateKey(d)]);
+          if (anyTime) {
+            const parts = [...calendar.selectedDates]
+              .sort((a, b) => a.getTime() - b.getTime())
+              .map((d) => {
+                const k = getDateKey(d);
+                const t = times[k];
+                const dl = formatDateDisplay(d, calendar.locale);
+                return t ? `${dl} · ${t}` : dl;
+              });
+            labelDiv.textContent = parts.join(', ');
+            return;
+          }
+          originalUpdateButtonLabel();
+          return;
+        }
+
+        const key = getDateKey(activeDate);
+        const block = times[key];
+
+        if (block) {
           if (calendar.mode === 'range' && calendar.startDate && calendar.endDate) {
             const startKey = getDateKey(calendar.startDate);
             const endKey = getDateKey(calendar.endDate);
@@ -240,7 +261,7 @@ export function timePlugin(options: TimePluginOptions = {}): CalendarPlugin {
 
       // Single or multiple: one time picker
       if (pickerType === 'spinner') {
-        _renderSpinner(calendar, panel, key, times);
+        _renderSpinner(calendar, panel, key, times, activeDate);
       } else {
         _renderBlocks(calendar, panel, key, times, activeDate);
       }
@@ -321,6 +342,7 @@ function _renderSpinner(
   panel: HTMLElement,
   key: number,
   times: Record<number, string>,
+  date: Date,
 ): void {
   const opts = (calendar.plugins?.find((p) => p.name === 'timePlugin')?.options || {}) as TimePluginOptions;
   const minuteStep = opts.minuteStep || 15;
@@ -335,6 +357,12 @@ function _renderSpinner(
     }
   }
 
+  function _isTimeBlocked(h: number, m: number): boolean {
+    const label = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+    if (typeof opts.isTimeBlocked === 'function') return opts.isTimeBlocked(label, [date]);
+    return isTimeBlockedByRules(calendar, date, label, h, m);
+  }
+
   const spinnerWrap = document.createElement('div');
   spinnerWrap.className = 'mc-time-spinner';
 
@@ -344,6 +372,7 @@ function _renderSpinner(
     step: 1,
     value: hour,
     label: 'Hours',
+    isBlocked: (h) => _isTimeBlocked(h, minute),
     onChange: (v) => {
       hour = v;
       _commitSpinner();
@@ -360,6 +389,7 @@ function _renderSpinner(
     step: minuteStep,
     value: minute,
     label: 'Minutes',
+    isBlocked: (m) => _isTimeBlocked(hour, m),
     onChange: (v) => {
       minute = v;
       _commitSpinner();
@@ -375,6 +405,7 @@ function _renderSpinner(
     }
     calendar.updateButtonLabel();
     calendar.updateHiddenInput();
+    _refreshMultiChips(calendar);
     calendar.emit('timeSelected', {
       date: new Date(key),
       time: timeStr,
@@ -433,8 +464,8 @@ function _renderRangeTimePickers(
   panel.appendChild(rangeWrap);
 
   if (pickerType === 'spinner') {
-    _renderSpinnerInto(calendar, arrivalPanel, startKey, times);
-    _renderSpinnerInto(calendar, departurePanel, endKey, times);
+    _renderSpinnerInto(calendar, arrivalPanel, startKey, times, startDate);
+    _renderSpinnerInto(calendar, departurePanel, endKey, times, endDate);
   } else {
     _renderBlocksInto(calendar, arrivalPanel, startKey, times, startDate);
     _renderBlocksInto(calendar, departurePanel, endKey, times, endDate);
@@ -504,6 +535,7 @@ function _renderSpinnerInto(
   target: HTMLElement,
   key: number,
   times: Record<number, string>,
+  date: Date,
 ): void {
   const opts = (calendar.plugins?.find((p) => p.name === 'timePlugin')?.options || {}) as TimePluginOptions;
   const minuteStep = opts.minuteStep || 15;
@@ -518,11 +550,18 @@ function _renderSpinnerInto(
     }
   }
 
+  function _isTimeBlocked(h: number, m: number): boolean {
+    const label = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+    if (typeof opts.isTimeBlocked === 'function') return opts.isTimeBlocked(label, [date]);
+    return isTimeBlockedByRules(calendar, date, label, h, m);
+  }
+
   const spinnerWrap = document.createElement('div');
   spinnerWrap.className = 'mc-time-spinner';
 
   const hourSpinner = createSpinner({
     min: 0, max: 23, step: 1, value: hour, label: 'Hours',
+    isBlocked: (h) => _isTimeBlocked(h, minute),
     onChange: (v) => { hour = v; commit(); },
   });
   const sep = document.createElement('span');
@@ -530,6 +569,7 @@ function _renderSpinnerInto(
   sep.textContent = ':';
   const minSpinner = createSpinner({
     min: 0, max: 59, step: minuteStep, value: minute, label: 'Minutes',
+    isBlocked: (m) => _isTimeBlocked(hour, m),
     onChange: (v) => { minute = v; commit(); },
   });
 
@@ -542,6 +582,7 @@ function _renderSpinnerInto(
     }
     calendar.updateButtonLabel();
     calendar.updateHiddenInput();
+    _refreshMultiChips(calendar);
     calendar.emit('timeSelected', { date: new Date(key), time: timeStr });
   }
 
@@ -568,7 +609,33 @@ function _selectTime(
 
   calendar.updateButtonLabel();
   calendar.updateHiddenInput();
+  _refreshMultiChips(calendar);
   calendar.emit('timeSelected', { date: new Date(key), time: blockKey });
+}
+
+/** Re-label .mc-remove-date chips with their selected time (multiple mode). */
+function _refreshMultiChips(calendar: CalendarInstance): void {
+  if (calendar.mode !== 'multiple') return;
+  const state = calendar._timePluginState;
+  if (!state || !calendar.container) return;
+  const chips = calendar.container.querySelectorAll<HTMLElement>('.mc-remove-date');
+  chips.forEach((chip) => {
+    const k = chip.dataset.key;
+    if (!k) return;
+    const keyNum = Number(k);
+    // Rebuild label: find matching date to format it
+    const dateObj = calendar.selectedDates.find((d) => {
+      const dt = new Date(d);
+      dt.setUTCHours(0, 0, 0, 0);
+      return dt.getTime() === keyNum;
+    });
+    if (!dateObj) return;
+    let label = formatDateDisplay(dateObj, calendar.locale);
+    const time = state.selectedTimes[keyNum];
+    if (time) label += ` · ${time}`;
+    chip.textContent = label;
+    chip.setAttribute('aria-label', `Remove ${label}`);
+  });
 }
 
 function _parseBlockTimestamps(date: Date, block: string): [number, number] | null {

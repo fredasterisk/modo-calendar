@@ -233,8 +233,10 @@ function _renderMonthsMultiList(calendar: CalendarInstance): void {
       return dt.getTime();
     };
     const lastKey = getDateKey(calendar._timePluginState._lastDateClicked);
-    if (!filteredDates.some((d) => getDateKey(d) === lastKey)) {
-      filteredDates.push(new Date(Number(lastKey)));
+    // Only re-add if the date is still in selectedDates (avoid phantom after deletion)
+    const stillSelected = calendar.selectedDates.some((d) => getDateKey(d) === lastKey);
+    if (stillSelected && !filteredDates.some((d) => getDateKey(d) === lastKey)) {
+      filteredDates.push(calendar._timePluginState._lastDateClicked);
     }
   }
 
@@ -243,8 +245,16 @@ function _renderMonthsMultiList(calendar: CalendarInstance): void {
       const btn = document.createElement('button');
       btn.type = 'button';
       btn.className = 'mc-btn mc-remove-date';
-      btn.textContent = formatDateDisplay(date, calendar.locale);
-      btn.setAttribute('aria-label', `Remove ${formatDateDisplay(date, calendar.locale)}`);
+      const dtKey = new Date(date);
+      dtKey.setUTCHours(0, 0, 0, 0);
+      btn.dataset.key = String(dtKey.getTime());
+      let label = formatDateDisplay(date, calendar.locale);
+      if (calendar._timePluginState) {
+        const time = calendar._timePluginState.selectedTimes[dtKey.getTime()];
+        if (time) label += ` · ${time}`;
+      }
+      btn.textContent = label;
+      btn.setAttribute('aria-label', `Remove ${label}`);
       btn.onclick = () => {
         const idx = calendar.selectedDates.findIndex((d) => d.getTime() === date.getTime());
         if (idx > -1) calendar.selectedDates.splice(idx, 1);

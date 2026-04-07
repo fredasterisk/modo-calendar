@@ -601,8 +601,17 @@ export class ModoCalendar extends EventEmitter implements CalendarInstance {
         const btn = document.createElement('button');
         btn.type = 'button';
         btn.className = this._cls('mc-btn mc-remove-date', 'removeButton');
-        btn.textContent = formatDateDisplay(date, this.locale);
-        btn.setAttribute('aria-label', `Remove ${formatDateDisplay(date, this.locale)}`);
+        const dtKey = new Date(date);
+        dtKey.setUTCHours(0, 0, 0, 0);
+        btn.dataset.key = String(dtKey.getTime());
+        let label = formatDateDisplay(date, this.locale);
+        // Append selected time if available from time plugin state
+        if (this._timePluginState) {
+          const time = this._timePluginState.selectedTimes[dtKey.getTime()];
+          if (time) label += ` · ${time}`;
+        }
+        btn.textContent = label;
+        btn.setAttribute('aria-label', `Remove ${label}`);
         btn.onclick = () => {
           const idx = this.selectedDates.findIndex((d) => d.getTime() === date.getTime());
           if (idx > -1) this.selectedDates.splice(idx, 1);
@@ -655,15 +664,20 @@ export class ModoCalendar extends EventEmitter implements CalendarInstance {
       const hasTimePlugin = this.plugins?.some((p) => p.name === 'timePlugin');
 
       if (hasTimePlugin) {
-        if (this._timePluginState?._lastDateClicked && this.dayElements) {
-          const lastKey = this._timePluginState._lastDateClicked.getTime();
-          this.dayElements.forEach(({ el, date }) => {
-            if (date.getTime() === lastKey) el.classList.add('mc-day--selected');
-            else el.classList.remove('mc-day--selected');
-          });
+        // Still toggle the date in selectedDates
+        const idx = this.selectedDates.findIndex((d) => d.getTime() === selectedTime);
+        if (idx === -1) {
+          if (!this._validateMultipleSelection()) return;
+          this.selectedDates.push(selected);
+          this.emit('dateSelected', { date: selected, mode: this.mode });
+        } else {
+          this.selectedDates.splice(idx, 1);
+          this.emit('dateDeselected', { date: selected, mode: this.mode });
         }
+
         this._forceTimePluginRender = true;
         this.updateButtonLabel();
+        this.renderCalendar();
         this.updateDayClasses();
         this.updateHiddenInput();
         return;

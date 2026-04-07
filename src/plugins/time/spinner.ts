@@ -9,11 +9,34 @@ export interface SpinnerOptions {
   pad?: number;
   label?: string;
   onChange: (value: number) => void;
+  /** Return true if the candidate value should be skipped. */
+  isBlocked?: (value: number) => boolean;
 }
 
 export function createSpinner(opts: SpinnerOptions): HTMLElement {
-  const { min, max, step, pad = 2, label } = opts;
+  const { min, max, step, pad = 2, label, isBlocked } = opts;
   let value = opts.value;
+
+  // Total number of discrete positions (used as safety limit for skip loops)
+  const totalPositions = Math.floor((max - min) / step) + 1;
+
+  /** Advance `v` by one step in the given direction, wrapping around. */
+  function stepValue(v: number, dir: 1 | -1): number {
+    if (dir === 1) return v + step > max ? min : v + step;
+    return v - step < min ? wrapMax : v - step;
+  }
+
+  /** Find the next unblocked value starting from `candidate`, stepping in `dir`. */
+  function nextUnblocked(candidate: number, dir: 1 | -1): number {
+    if (!isBlocked) return candidate;
+    let v = candidate;
+    let attempts = 0;
+    while (isBlocked(v) && attempts < totalPositions) {
+      v = stepValue(v, dir);
+      attempts++;
+    }
+    return v;
+  }
 
   const wrap = document.createElement('div');
   wrap.className = 'mc-spinner';
@@ -51,22 +74,22 @@ export function createSpinner(opts: SpinnerOptions): HTMLElement {
 
   upBtn.addEventListener('click', (e) => {
     e.stopPropagation();
-    update(value + step > max ? min : value + step);
+    update(nextUnblocked(stepValue(value, 1), 1));
   });
 
   downBtn.addEventListener('click', (e) => {
     e.stopPropagation();
-    update(value - step < min ? wrapMax : value - step);
+    update(nextUnblocked(stepValue(value, -1), -1));
   });
 
   // Keyboard support on the display
   display.addEventListener('keydown', (e) => {
     if (e.key === 'ArrowUp' || e.key === 'ArrowRight') {
       e.preventDefault();
-      update(value + step > max ? min : value + step);
+      update(nextUnblocked(stepValue(value, 1), 1));
     } else if (e.key === 'ArrowDown' || e.key === 'ArrowLeft') {
       e.preventDefault();
-      update(value - step < min ? wrapMax : value - step);
+      update(nextUnblocked(stepValue(value, -1), -1));
     }
   });
 
@@ -75,8 +98,8 @@ export function createSpinner(opts: SpinnerOptions): HTMLElement {
     'wheel',
     (e) => {
       e.preventDefault();
-      if (e.deltaY < 0) update(value + step > max ? min : value + step);
-      else update(value - step < min ? wrapMax : value - step);
+      if (e.deltaY < 0) update(nextUnblocked(stepValue(value, 1), 1));
+      else update(nextUnblocked(stepValue(value, -1), -1));
     },
     { passive: false },
   );
