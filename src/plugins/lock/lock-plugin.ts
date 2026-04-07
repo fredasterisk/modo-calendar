@@ -130,8 +130,19 @@ function ruleMatchesDate(rule: LockRule, date: Date): boolean {
   return false;
 }
 
-/** Compute the combined effect of all matching rules on a given date. */
+/** Compute the combined effect of all matching rules on a given date. Results are cached per rules array. */
+let _effectCache: WeakMap<LockRule[], Map<number, DateEffect>> = new WeakMap();
+
 function getDateEffect(rules: LockRule[], date: Date): DateEffect {
+  let cache = _effectCache.get(rules);
+  if (!cache) {
+    cache = new Map();
+    _effectCache.set(rules, cache);
+  }
+  const key = toMidnight(date);
+  const cached = cache.get(key);
+  if (cached) return cached;
+
   const effect = emptyEffect();
   for (const rule of rules) {
     if (!ruleMatchesDate(rule, date)) continue;
@@ -145,6 +156,7 @@ function getDateEffect(rules: LockRule[], date: Date): DateEffect {
     if (rule.blockAllTimes) effect.blockAllTimes = true;
     if (rule.blockedTimes) effect.blockedTimes.push(...rule.blockedTimes);
   }
+  cache.set(key, effect);
   return effect;
 }
 
@@ -178,6 +190,24 @@ function legacyToRules(options: LockPluginOptions): LockRule[] {
 // ─── Plugin ──────────────────────────────────────────────────────────────────
 
 export function lockPlugin(options: LockPluginOptions = {}): CalendarPlugin {
+  // Validate rule date strings
+  const datePattern = /^\d{4}-\d{2}-\d{2}$/;
+  for (const rule of (options.rules || [])) {
+    if (rule.dates) {
+      for (const d of rule.dates) {
+        if (typeof d === 'string' && !datePattern.test(d)) {
+          console.warn(`[ModoCalendar:lockPlugin] Invalid date format "${d}" in rule. Expected "YYYY-MM-DD".`);
+        }
+      }
+    }
+    if (rule.from && typeof rule.from === 'string' && !datePattern.test(rule.from)) {
+      console.warn(`[ModoCalendar:lockPlugin] Invalid 'from' date "${rule.from}". Expected "YYYY-MM-DD".`);
+    }
+    if (rule.to && typeof rule.to === 'string' && !datePattern.test(rule.to)) {
+      console.warn(`[ModoCalendar:lockPlugin] Invalid 'to' date "${rule.to}". Expected "YYYY-MM-DD".`);
+    }
+  }
+
   const rules: LockRule[] = [
     ...legacyToRules(options),
     ...(options.rules || []),
@@ -225,19 +255,20 @@ export function lockPlugin(options: LockPluginOptions = {}): CalendarPlugin {
         });
       };
 
-      // Override updateDayClasses
-      const originalUpdateDayClasses = calendar.updateDayClasses.bind(calendar);
-      calendar.updateDayClasses = function (this: CalendarInstance) {
-        const lockRules = (this._lockRules || []) as LockRule[];
-        let fromDate = this.startDate;
-        let toDate = this.endDate || (this.startDate && this.hoverDate ? this.hoverDate : null);
+      // Hook: updateDayClasses — add lock classes after core classes
+      const unhookUpdateDayClasses = calendar._addHook('updateDayClasses', (original) => {
+        return function (this: CalendarInstance) {
+          const lockRules = (this._lockRules || []) as LockRule[];
+          let fromDate = this.startDate;
+          let toDate = this.endDate || (this.startDate && this.hoverDate ? this.hoverDate : null);
 
-        originalUpdateDayClasses();
-        if (!this.dayElements) return;
+          original();
+          if (!this.dayElements) return;
 
         // Remove previous lock classes
         this.dayElements.forEach(({ el }) => {
           el.classList.remove('mc-day--denied', 'mc-day--blocked', 'mc-day--no-range-start', 'mc-day--no-range-end');
+          el.removeAttribute('aria-disabled');
         });
 
         // Limit hover range — stop at first blocked date in path
@@ -265,7 +296,10 @@ export function lockPlugin(options: LockPluginOptions = {}): CalendarPlugin {
         // Apply classes
         this.dayElements.forEach(({ el, date }) => {
           const eff = getDateEffect(lockRules, date);
-          if (eff.blocked) el.classList.add('mc-day--blocked');
+          if (eff.blocked) {
+            el.classList.add('mc-day--blocked');
+            el.setAttribute('aria-disabled', 'true');
+          }
           if (eff.noCheckin) el.classList.add('mc-day--no-range-start');
           if (eff.noCheckout) el.classList.add('mc-day--no-range-end');
         });
@@ -303,13 +337,14 @@ export function lockPlugin(options: LockPluginOptions = {}): CalendarPlugin {
             });
           }
         }
-      };
+        };
+      });
 
-      // Override selectDate — blocks in ALL modes
-      const originalSelectDate = calendar.selectDate.bind(calendar);
-      calendar.selectDate = function (this: CalendarInstance, selected: Date, monthIndex: number) {
-        const lockRules = (this._lockRules || []) as LockRule[];
-        const eff = getDateEffect(lockRules, selected);
+      // Hook: selectDate — block selections on locked dates
+      const unhookSelectDate = calendar._addHook('selectDate', (original) => {
+        return function (this: CalendarInstance, selected: Date, monthIndex: number) {
+          const lockRules = (this._lockRules || []) as LockRule[];
+          const eff = getDateEffect(lockRules, selected);
 
         // Allow deselecting the current start date (click same date again)
         if (
@@ -317,7 +352,7 @@ export function lockPlugin(options: LockPluginOptions = {}): CalendarPlugin {
           this.startDate && !this.endDate &&
           selected.getTime() === this.startDate.getTime()
         ) {
-          return originalSelectDate(selected, monthIndex);
+          return original(selected, monthIndex);
         }
 
         // Fully blocked: reject in all modes
@@ -362,8 +397,9 @@ export function lockPlugin(options: LockPluginOptions = {}): CalendarPlugin {
           }
         }
 
-        return originalSelectDate(selected, monthIndex);
-      };
+        return original(selected, monthIndex);
+        };
+      });
     },
 
     onRender(calendar: CalendarInstance) {

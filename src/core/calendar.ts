@@ -79,8 +79,9 @@ export class ModoCalendar extends EventEmitter implements CalendarInstance {
   classNames: Partial<CalendarClassNames>;
 
   _initialLabelValue: string | null = null;
-  _timePluginState: { selectedTimes: Record<number, string>; _lastDateClicked: Date | null } = {
+  _timePluginState: { selectedTimes: Record<number, string>; selectedTimePairs: Record<number, { arrival: string | null; departure: string | null }>; _lastDateClicked: Date | null } = {
     selectedTimes: {},
+    selectedTimePairs: {},
     _lastDateClicked: null,
   };
   _forceTimePluginRender = false;
@@ -104,6 +105,9 @@ export class ModoCalendar extends EventEmitter implements CalendarInstance {
   selectedTimes?: Record<number, string>;
   monthOffsets?: number[];
   strictRange2Months?: boolean;
+
+  // Hook chain for plugin method overrides
+  _hookRegistry: Map<string, { original: (...args: any[]) => any; entries: Array<{ wrapper: (original: (...args: any[]) => any) => (...args: any[]) => any }> }> = new Map();
 
   [key: string]: unknown;
 
@@ -166,6 +170,41 @@ export class ModoCalendar extends EventEmitter implements CalendarInstance {
     return extra ? `${bemClass} ${extra}` : bemClass;
   }
 
+  /**
+   * Register a method override via the hook chain.
+   * The wrapper receives the current implementation and returns the new one.
+   * Returns an unhook function that removes this wrapper from the chain.
+   */
+  _addHook(method: string, wrapper: (original: (...args: any[]) => any) => (...args: any[]) => any): () => void {
+    if (!this._hookRegistry.has(method)) {
+      this._hookRegistry.set(method, {
+        original: (this as any)[method].bind(this),
+        entries: [],
+      });
+    }
+    const reg = this._hookRegistry.get(method)!;
+    const entry = { wrapper };
+    reg.entries.push(entry);
+    this._rebuildHook(method);
+    return () => {
+      const idx = reg.entries.indexOf(entry);
+      if (idx >= 0) {
+        reg.entries.splice(idx, 1);
+        this._rebuildHook(method);
+      }
+    };
+  }
+
+  private _rebuildHook(method: string): void {
+    const reg = this._hookRegistry.get(method);
+    if (!reg) return;
+    let current = reg.original;
+    for (const entry of reg.entries) {
+      current = entry.wrapper(current);
+    }
+    (this as any)[method] = current;
+  }
+
   // --- Lifecycle ---
 
   private _attachToTrigger(selector: string | HTMLElement | null): void {
@@ -211,6 +250,7 @@ export class ModoCalendar extends EventEmitter implements CalendarInstance {
     this.container = document.createElement('div');
     this.container.className = this._cls('mc-calendar', 'calendar');
     this.container.setAttribute('role', 'dialog');
+    this.container.setAttribute('aria-modal', 'true');
     this.container.setAttribute('aria-label', this.locale.strings.placeholder);
 
     const root = this.shadowRoot || this.shadowHost;
@@ -318,6 +358,7 @@ export class ModoCalendar extends EventEmitter implements CalendarInstance {
 
   hideCalendar(): void {
     if (this.options.inline || !this.container) return;
+    cancelAnimationFrame(this._hoverRaf);
 
     animateClose(this.container);
     this.plugins?.forEach((p) => p.onCalendarClose?.(this));
@@ -325,6 +366,7 @@ export class ModoCalendar extends EventEmitter implements CalendarInstance {
   }
 
   destroy(): void {
+    cancelAnimationFrame(this._hoverRaf);
     this._cleanupGestures?.();
     this.plugins.forEach((p) => p.onDestroy?.(this));
     this.removeAllListeners();
@@ -607,8 +649,15 @@ export class ModoCalendar extends EventEmitter implements CalendarInstance {
         let label = formatDateDisplay(date, this.locale);
         // Append selected time if available from time plugin state
         if (this._timePluginState) {
-          const time = this._timePluginState.selectedTimes[dtKey.getTime()];
-          if (time) label += ` · ${time}`;
+          const pair = this._timePluginState.selectedTimePairs?.[dtKey.getTime()];
+          if (pair && (pair.arrival || pair.departure)) {
+            const arr = pair.arrival || '–';
+            const dep = pair.departure || '–';
+            label += ` (${arr} → ${dep})`;
+          } else {
+            const time = this._timePluginState.selectedTimes[dtKey.getTime()];
+            if (time) label += ` · ${time}`;
+          }
         }
         btn.textContent = label;
         btn.setAttribute('aria-label', `Remove ${label}`);
@@ -792,6 +841,33 @@ export class ModoCalendar extends EventEmitter implements CalendarInstance {
     this._batchEnd?.();
   }
 
+  clearSelection(): void {
+    this._batchStart?.();
+    this.startDate = null;
+    this.endDate = null;
+    this.selectedDate = null;
+    this.selectedDates = [];
+    this.hoverDate = null;
+    this.updateButtonLabel();
+    this.updateDayClasses();
+    this.updateHiddenInput();
+    this.renderCalendar();
+    this.emit('rangeCleared', undefined as never);
+    this._batchEnd?.();
+  }
+
+  getSelection(): { mode: CalendarMode; dates: Date[]; start: Date | null; end: Date | null } {
+    if (this.mode === 'single') {
+      return { mode: this.mode, dates: this.selectedDate ? [this.selectedDate] : [], start: this.selectedDate, end: null };
+    }
+    if (this.mode === 'multiple') {
+      return { mode: this.mode, dates: [...this.selectedDates], start: null, end: null };
+    }
+    // range
+    const dates = this.startDate && this.endDate ? this.getDateRangeArray(this.startDate, this.endDate) : this.startDate ? [this.startDate] : [];
+    return { mode: this.mode, dates, start: this.startDate, end: this.endDate };
+  }
+
   // --- Day Classes ---
 
   updateDayClasses(): void {
@@ -921,6 +997,25 @@ export class ModoCalendar extends EventEmitter implements CalendarInstance {
         this.trigger?.focus();
         ke.preventDefault();
         return;
+      }
+
+      // Focus trap: keep Tab/Shift+Tab within the calendar popup
+      if (key === 'Tab' && !this.options.inline && this.container) {
+        const focusable = this.container.querySelectorAll<HTMLElement>(
+          'button:not([disabled]), [tabindex]:not([tabindex="-1"]), select, input',
+        );
+        if (focusable.length) {
+          const first = focusable[0];
+          const last = focusable[focusable.length - 1];
+          const active = (this.shadowRoot || document).activeElement as HTMLElement | null;
+          if (ke.shiftKey && active === first) {
+            ke.preventDefault();
+            last.focus();
+          } else if (!ke.shiftKey && active === last) {
+            ke.preventDefault();
+            first.focus();
+          }
+        }
       }
 
       // Arrow navigation
@@ -1078,10 +1173,13 @@ export class ModoCalendar extends EventEmitter implements CalendarInstance {
   getDateRangeArray(startDate: Date, endDate: Date): Date[] {
     const range: Date[] = [];
     const dir = startDate < endDate ? 1 : -1;
-    const current = new Date(startDate);
-    while ((dir > 0 && current <= endDate) || (dir < 0 && current >= endDate)) {
+    const current = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate());
+    const endMidnight = new Date(endDate.getFullYear(), endDate.getMonth(), endDate.getDate());
+    while ((dir > 0 && current <= endMidnight) || (dir < 0 && current >= endMidnight)) {
       range.push(new Date(current));
       current.setDate(current.getDate() + dir);
+      // Re-normalize to midnight to guard against DST hour drift
+      current.setHours(0, 0, 0, 0);
     }
     return range;
   }

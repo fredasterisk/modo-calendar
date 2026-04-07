@@ -61,6 +61,14 @@ export interface DropdownPluginOptions {
 export function dropdownPlugin(options: DropdownPluginOptions = {}): CalendarPlugin {
   const currentYear = new Date().getFullYear();
   const [yearStart, yearEnd] = options.yearRange || [currentYear - 10, currentYear + 10];
+  let _ac: AbortController | null = null;
+
+  // Validate options
+  if (options.yearRange) {
+    if (options.yearRange[0] > options.yearRange[1]) {
+      console.warn(`[ModoCalendar:dropdownPlugin] yearRange start (${options.yearRange[0]}) is after end (${options.yearRange[1]}).`);
+    }
+  }
 
   return {
     name: 'dropdown',
@@ -70,8 +78,18 @@ export function dropdownPlugin(options: DropdownPluginOptions = {}): CalendarPlu
       injectCSS(calendar.shadowRoot || calendar.shadowHost);
     },
 
+    onDestroy() {
+      _ac?.abort();
+      _ac = null;
+    },
+
     onRender(calendar: CalendarInstance) {
       if (!calendar.container) return;
+
+      // Abort previous listeners before re-rendering
+      _ac?.abort();
+      _ac = new AbortController();
+      const signal = _ac.signal;
 
       // Replace all mc-month-label elements with dropdowns
       const labels = calendar.container.querySelectorAll('.mc-month-label');
@@ -191,11 +209,11 @@ export function dropdownPlugin(options: DropdownPluginOptions = {}): CalendarPlu
           calendar.emit('monthChanged', { date: new Date(newYear, newMonth, 1), direction: 'jump' });
         };
 
-        monthSelect.addEventListener('change', handleChange);
+        monthSelect.addEventListener('change', handleChange, { signal });
         yearSelect.addEventListener('change', () => {
           updateMonthOptions();
           handleChange();
-        });
+        }, { signal });
 
         // Initial disable pass
         updateMonthOptions();

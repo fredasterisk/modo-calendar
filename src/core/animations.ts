@@ -22,6 +22,9 @@ const prefersReduced = typeof window !== 'undefined'
   ? window.matchMedia('(prefers-reduced-motion: reduce)').matches
   : false;
 
+/** Safety margin (ms) added to animation duration before the timeout fallback fires. */
+const TIMEOUT_GUARD = 500;
+
 export function shouldAnimate(): boolean {
   return !prefersReduced;
 }
@@ -47,7 +50,9 @@ export function animateSlide(
         fill: 'forwards',
       },
     );
+    const timeout = setTimeout(() => { anim.cancel(); resolve(); }, duration + TIMEOUT_GUARD);
     anim.onfinish = () => {
+      clearTimeout(timeout);
       anim.cancel();
       resolve();
     };
@@ -74,7 +79,9 @@ export function animateOpen(container: HTMLElement, duration = 250): Promise<voi
         fill: 'forwards',
       },
     );
+    const timeout = setTimeout(() => { anim.cancel(); resolve(); }, duration + TIMEOUT_GUARD);
     anim.onfinish = () => {
+      clearTimeout(timeout);
       anim.cancel();
       resolve();
     };
@@ -99,7 +106,9 @@ export function animateClose(container: HTMLElement, duration = 180): Promise<vo
         fill: 'forwards',
       },
     );
+    const timeout = setTimeout(() => { anim.cancel(); container.style.display = 'none'; resolve(); }, duration + TIMEOUT_GUARD);
     anim.onfinish = () => {
+      clearTimeout(timeout);
       anim.cancel();
       container.style.display = 'none';
       resolve();

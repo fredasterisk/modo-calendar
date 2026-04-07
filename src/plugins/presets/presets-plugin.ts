@@ -92,12 +92,19 @@ function injectCSS(root: ShadowRoot | HTMLElement | null): void {
 }
 
 export function presetsPlugin(options: PresetsPluginOptions): CalendarPlugin {
+  let _ac: AbortController | null = null;
+
   return {
     name: 'presets',
     options: options as unknown as Record<string, unknown>,
 
     onShadowReady(calendar: CalendarInstance) {
       injectCSS(calendar.shadowRoot || calendar.shadowHost);
+    },
+
+    onDestroy() {
+      _ac?.abort();
+      _ac = null;
     },
 
     onRender(calendar: CalendarInstance) {
@@ -112,7 +119,7 @@ export function presetsPlugin(options: PresetsPluginOptions): CalendarPlugin {
 
       const sidebar = document.createElement('div');
       sidebar.className = 'mc-presets';
-      sidebar.setAttribute('role', 'listbox');
+      sidebar.setAttribute('role', 'group');
       sidebar.setAttribute('aria-label', 'Date presets');
 
       // Move all existing children into a content wrapper
@@ -122,12 +129,15 @@ export function presetsPlugin(options: PresetsPluginOptions): CalendarPlugin {
         contentWrapper.appendChild(calendar.container.firstChild);
       }
 
+      _ac?.abort();
+      _ac = new AbortController();
+      const signal = _ac.signal;
+
       options.presets.forEach((preset) => {
         const btn = document.createElement('button');
         btn.type = 'button';
         btn.className = 'mc-preset-btn';
         btn.textContent = preset.label;
-        btn.setAttribute('role', 'option');
 
         // Check if this preset is currently active
         const [pStart, pEnd] = preset.dates();
@@ -138,6 +148,8 @@ export function presetsPlugin(options: PresetsPluginOptions): CalendarPlugin {
         ) {
           btn.classList.add('mc-preset-btn--active');
           btn.setAttribute('aria-selected', 'true');
+        } else {
+          btn.setAttribute('aria-selected', 'false');
         }
 
         btn.addEventListener('click', (e) => {
@@ -163,7 +175,7 @@ export function presetsPlugin(options: PresetsPluginOptions): CalendarPlugin {
           calendar.updateDayClasses();
           calendar.updateHiddenInput();
           calendar.emit('rangeSelected', { start, end });
-        });
+        }, { signal });
 
         sidebar.appendChild(btn);
       });
@@ -183,11 +195,36 @@ function _sameDay(a: Date, b: Date): boolean {
   );
 }
 
+// Built-in label translations
+const _presetLabels: Record<string, Record<string, string>> = {
+  today:       { fr: "Aujourd'hui",       en: 'Today',         es: 'Hoy',          de: 'Heute',         pt: 'Hoje' },
+  tomorrow:    { fr: 'Demain',            en: 'Tomorrow',      es: 'Mañana',       de: 'Morgen',        pt: 'Amanhã' },
+  next7Days:   { fr: '7 prochains jours', en: 'Next 7 days',   es: 'Próximos 7 días', de: 'Nächste 7 Tage', pt: 'Próximos 7 dias' },
+  next30Days:  { fr: '30 prochains jours',en: 'Next 30 days',  es: 'Próximos 30 días',de: 'Nächste 30 Tage',pt: 'Próximos 30 dias' },
+  thisMonth:   { fr: 'Ce mois',           en: 'This month',    es: 'Este mes',     de: 'Dieser Monat',  pt: 'Este mês' },
+  nextMonth:   { fr: 'Mois prochain',     en: 'Next month',    es: 'Mes próximo',  de: 'Nächster Monat',pt: 'Próximo mês' },
+  nextWeek:    { fr: 'Semaine prochaine', en: 'Next week',     es: 'Semana próxima',de: 'Nächste Woche', pt: 'Próxima semana' },
+  thisWeekend: { fr: 'Ce weekend',        en: 'This weekend',  es: 'Este fin de semana',de: 'Dieses Wochenende',pt: 'Este fim de semana' },
+  nextWeekend: { fr: 'Weekend prochain',  en: 'Next weekend',  es: 'Próximo fin de semana',de: 'Nächstes Wochenende',pt: 'Próximo fim de semana' },
+};
+
+function _label(key: string, lang?: string): string {
+  const labels = _presetLabels[key];
+  if (!labels) return key;
+  if (lang && labels[lang]) return labels[lang];
+  // Try language prefix (e.g. "fr-FR" → "fr")
+  if (lang) {
+    const prefix = lang.split('-')[0].toLowerCase();
+    if (labels[prefix]) return labels[prefix];
+  }
+  return labels.fr; // default to French for backward compatibility
+}
+
 // Helper: common preset factories
 export const presetRanges = {
-  today(): PresetRange {
+  today(lang?: string): PresetRange {
     return {
-      label: "Aujourd'hui",
+      label: _label('today', lang),
       dates: () => {
         const d = new Date();
         d.setHours(0, 0, 0, 0);
@@ -195,9 +232,9 @@ export const presetRanges = {
       },
     };
   },
-  tomorrow(): PresetRange {
+  tomorrow(lang?: string): PresetRange {
     return {
-      label: 'Demain',
+      label: _label('tomorrow', lang),
       dates: () => {
         const d = new Date();
         d.setDate(d.getDate() + 1);
@@ -206,9 +243,9 @@ export const presetRanges = {
       },
     };
   },
-  next7Days(): PresetRange {
+  next7Days(lang?: string): PresetRange {
     return {
-      label: '7 prochains jours',
+      label: _label('next7Days', lang),
       dates: () => {
         const start = new Date();
         start.setHours(0, 0, 0, 0);
@@ -218,9 +255,9 @@ export const presetRanges = {
       },
     };
   },
-  next30Days(): PresetRange {
+  next30Days(lang?: string): PresetRange {
     return {
-      label: '30 prochains jours',
+      label: _label('next30Days', lang),
       dates: () => {
         const start = new Date();
         start.setHours(0, 0, 0, 0);
@@ -230,9 +267,9 @@ export const presetRanges = {
       },
     };
   },
-  thisMonth(): PresetRange {
+  thisMonth(lang?: string): PresetRange {
     return {
-      label: 'Ce mois',
+      label: _label('thisMonth', lang),
       dates: () => {
         const now = new Date();
         const start = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -241,9 +278,9 @@ export const presetRanges = {
       },
     };
   },
-  nextMonth(): PresetRange {
+  nextMonth(lang?: string): PresetRange {
     return {
-      label: 'Mois prochain',
+      label: _label('nextMonth', lang),
       dates: () => {
         const now = new Date();
         const start = new Date(now.getFullYear(), now.getMonth() + 1, 1);
@@ -252,9 +289,9 @@ export const presetRanges = {
       },
     };
   },
-  nextWeek(): PresetRange {
+  nextWeek(lang?: string): PresetRange {
     return {
-      label: 'Semaine prochaine',
+      label: _label('nextWeek', lang),
       dates: () => {
         const now = new Date();
         const dayOfWeek = now.getDay();
@@ -268,9 +305,9 @@ export const presetRanges = {
       },
     };
   },
-  thisWeekend(): PresetRange {
+  thisWeekend(lang?: string): PresetRange {
     return {
-      label: 'Ce weekend',
+      label: _label('thisWeekend', lang),
       dates: () => {
         const now = new Date();
         const dayOfWeek = now.getDay();
@@ -284,9 +321,9 @@ export const presetRanges = {
       },
     };
   },
-  nextWeekend(): PresetRange {
+  nextWeekend(lang?: string): PresetRange {
     return {
-      label: 'Weekend prochain',
+      label: _label('nextWeekend', lang),
         dates: () => {
         const now = new Date();
         const dayOfWeek = now.getDay();
@@ -301,10 +338,10 @@ export const presetRanges = {
     };
   },
   // Legacy aliases (backward-compat)
-  last7Days(): PresetRange {
-    return { ...presetRanges.next7Days(), label: '7 prochains jours' };
+  last7Days(lang?: string): PresetRange {
+    return { ...presetRanges.next7Days(lang) };
   },
-  last30Days(): PresetRange {
-    return { ...presetRanges.next30Days(), label: '30 prochains jours' };
+  last30Days(lang?: string): PresetRange {
+    return { ...presetRanges.next30Days(lang) };
   },
 };

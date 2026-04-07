@@ -154,7 +154,8 @@ export interface HiddenInputValueRange {
 export interface HiddenInputValueMultiple {
   mode: 'multiple';
   dates: number[];
-  times?: Record<number, [number, number]>;
+  times?: Record<number, string | null>;
+  timePairs?: Record<number, { arrival: string | null; departure: string | null }>;
 }
 
 export type HiddenInputValue =
@@ -198,6 +199,8 @@ export interface CalendarInstance {
   updateHiddenInput(): void;
   selectDate(date: Date, monthIndex: number): void;
   setRange(start: string, end?: string): void;
+  clearSelection(): void;
+  getSelection(): { mode: CalendarMode; dates: Date[]; start: Date | null; end: Date | null };
   generateDays(date: Date, monthIndex: number): HTMLElement;
   formatDisplay(date: Date): string;
   formatDate(date: Date): string;
@@ -217,6 +220,10 @@ export interface CalendarInstance {
   getResolvedLocale(): string;
   getLabelElement(): HTMLElement | null;
 
+  // Hook chain system for plugin method overrides
+  _hookRegistry: Map<string, { original: (...args: any[]) => any; entries: Array<{ wrapper: (original: (...args: any[]) => any) => (...args: any[]) => any }> }>;
+  _addHook(method: string, wrapper: (original: (...args: any[]) => any) => (...args: any[]) => any): () => void;
+
   // Plugin-injected state (optional)
   blockedDates?: number[];
   noRangeStartDates?: number[];
@@ -230,6 +237,7 @@ export interface CalendarInstance {
   _initialized?: boolean;
   _timePluginState?: {
     selectedTimes: Record<number, string>;
+    selectedTimePairs: Record<number, { arrival: string | null; departure: string | null }>;
     _lastDateClicked: Date | null;
   };
   _forceTimePluginRender?: boolean;

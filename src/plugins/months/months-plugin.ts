@@ -31,6 +31,8 @@ export interface MonthsPluginOptions {
 }
 
 export function monthsPlugin(options: MonthsPluginOptions = {}): CalendarPlugin {
+  let _ac: AbortController | null = null;
+
   return {
     name: 'months',
     options: options as Record<string, unknown>,
@@ -43,9 +45,20 @@ export function monthsPlugin(options: MonthsPluginOptions = {}): CalendarPlugin 
       calendar.months = typeof options.months === 'number' && options.months >= 2 ? options.months : 2;
     },
 
+    onDestroy() {
+      _ac?.abort();
+      _ac = null;
+    },
+
     onRender(calendar: CalendarInstance) {
       if (!calendar.months || calendar.months < 2) calendar.months = 2;
       if (!calendar.container) return;
+
+      // Abort previous listeners before re-rendering
+      _ac?.abort();
+      _ac = new AbortController();
+      const signal = _ac.signal;
+
       calendar.container.innerHTML = '';
 
       if (!calendar.monthOffsets || calendar.monthOffsets.length !== calendar.months) {
@@ -119,7 +132,7 @@ export function monthsPlugin(options: MonthsPluginOptions = {}): CalendarPlugin 
           calendar.renderCalendar();
           calendar.updateDayClasses();
           calendar.emit('monthChanged', { date: new Date(monthDate), direction: 'prev' });
-        });
+        }, { signal });
 
         nextBtn.addEventListener('click', (e) => {
           e.stopPropagation();
@@ -144,7 +157,7 @@ export function monthsPlugin(options: MonthsPluginOptions = {}): CalendarPlugin 
           calendar.renderCalendar();
           calendar.updateDayClasses();
           calendar.emit('monthChanged', { date: new Date(monthDate), direction: 'next' });
-        });
+        }, { signal });
 
         nav.appendChild(prevBtn);
         nav.appendChild(nextBtn);
