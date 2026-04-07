@@ -267,7 +267,7 @@ export function lockPlugin(options: LockPluginOptions = {}): CalendarPlugin {
 
         // Remove previous lock classes
         this.dayElements.forEach(({ el }) => {
-          el.classList.remove('mc-day--denied', 'mc-day--blocked', 'mc-day--no-range-start', 'mc-day--no-range-end', 'mc-day--blocked-cont-left', 'mc-day--blocked-cont-right', 'mc-day--blocked-cont-top', 'mc-day--blocked-cont-bottom');
+          el.classList.remove('mc-day--denied', 'mc-day--blocked', 'mc-day--no-range-start', 'mc-day--no-range-end', 'mc-day--lock-cont-left', 'mc-day--lock-cont-right', 'mc-day--lock-cont-top', 'mc-day--lock-cont-bottom');
           el.removeAttribute('aria-disabled');
         });
 
@@ -304,34 +304,38 @@ export function lockPlugin(options: LockPluginOptions = {}): CalendarPlugin {
           if (eff.noCheckout) el.classList.add('mc-day--no-range-end');
         });
 
-        // Consecutive blocked days: flatten touching corners (horizontal + vertical)
+        // Consecutive locked days: flatten touching corners (horizontal + vertical)
+        // Applies to blocked, no-range-start, and no-range-end days
         const ws = this.locale?.firstDayOfWeek ?? 0;
-        const blockedTimes = new Set<number>();
+        const lockedTimes = new Set<number>();
         for (const { el, date } of this.dayElements) {
-          if (el.classList.contains('mc-day--blocked')) blockedTimes.add(toMidnight(date));
+          if (el.classList.contains('mc-day--blocked') || el.classList.contains('mc-day--no-range-start') || el.classList.contains('mc-day--no-range-end')) {
+            lockedTimes.add(toMidnight(date));
+          }
         }
         const ONE_DAY = 86400000;
         const SEVEN_DAYS = 7 * ONE_DAY;
         for (const { el, date } of this.dayElements) {
-          if (!el.classList.contains('mc-day--blocked')) continue;
+          const isLocked = el.classList.contains('mc-day--blocked') || el.classList.contains('mc-day--no-range-start') || el.classList.contains('mc-day--no-range-end');
+          if (!isLocked) continue;
           const t = toMidnight(date);
           const dow = date.getDay();
           // Horizontal left
-          if (dow !== ws && blockedTimes.has(t - ONE_DAY)) {
-            el.classList.add('mc-day--blocked-cont-left');
+          if (dow !== ws && lockedTimes.has(t - ONE_DAY)) {
+            el.classList.add('mc-day--lock-cont-left');
           }
           // Horizontal right
           const lastDow = (ws + 6) % 7;
-          if (dow !== lastDow && blockedTimes.has(t + ONE_DAY)) {
-            el.classList.add('mc-day--blocked-cont-right');
+          if (dow !== lastDow && lockedTimes.has(t + ONE_DAY)) {
+            el.classList.add('mc-day--lock-cont-right');
           }
           // Vertical top (same column, previous row)
-          if (blockedTimes.has(t - SEVEN_DAYS)) {
-            el.classList.add('mc-day--blocked-cont-top');
+          if (lockedTimes.has(t - SEVEN_DAYS)) {
+            el.classList.add('mc-day--lock-cont-top');
           }
           // Vertical bottom (same column, next row)
-          if (blockedTimes.has(t + SEVEN_DAYS)) {
-            el.classList.add('mc-day--blocked-cont-bottom');
+          if (lockedTimes.has(t + SEVEN_DAYS)) {
+            el.classList.add('mc-day--lock-cont-bottom');
           }
         }
 
