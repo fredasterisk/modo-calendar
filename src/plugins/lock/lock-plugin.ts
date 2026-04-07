@@ -267,7 +267,7 @@ export function lockPlugin(options: LockPluginOptions = {}): CalendarPlugin {
 
         // Remove previous lock classes
         this.dayElements.forEach(({ el }) => {
-          el.classList.remove('mc-day--denied', 'mc-day--blocked', 'mc-day--no-range-start', 'mc-day--no-range-end');
+          el.classList.remove('mc-day--denied', 'mc-day--blocked', 'mc-day--no-range-start', 'mc-day--no-range-end', 'mc-day--blocked-cont-left', 'mc-day--blocked-cont-right', 'mc-day--blocked-cont-top', 'mc-day--blocked-cont-bottom');
           el.removeAttribute('aria-disabled');
         });
 
@@ -303,6 +303,37 @@ export function lockPlugin(options: LockPluginOptions = {}): CalendarPlugin {
           if (eff.noCheckin) el.classList.add('mc-day--no-range-start');
           if (eff.noCheckout) el.classList.add('mc-day--no-range-end');
         });
+
+        // Consecutive blocked days: flatten touching corners (horizontal + vertical)
+        const ws = this.locale?.firstDayOfWeek ?? 0;
+        const blockedTimes = new Set<number>();
+        for (const { el, date } of this.dayElements) {
+          if (el.classList.contains('mc-day--blocked')) blockedTimes.add(toMidnight(date));
+        }
+        const ONE_DAY = 86400000;
+        const SEVEN_DAYS = 7 * ONE_DAY;
+        for (const { el, date } of this.dayElements) {
+          if (!el.classList.contains('mc-day--blocked')) continue;
+          const t = toMidnight(date);
+          const dow = date.getDay();
+          // Horizontal left
+          if (dow !== ws && blockedTimes.has(t - ONE_DAY)) {
+            el.classList.add('mc-day--blocked-cont-left');
+          }
+          // Horizontal right
+          const lastDow = (ws + 6) % 7;
+          if (dow !== lastDow && blockedTimes.has(t + ONE_DAY)) {
+            el.classList.add('mc-day--blocked-cont-right');
+          }
+          // Vertical top (same column, previous row)
+          if (blockedTimes.has(t - SEVEN_DAYS)) {
+            el.classList.add('mc-day--blocked-cont-top');
+          }
+          // Vertical bottom (same column, next row)
+          if (blockedTimes.has(t + SEVEN_DAYS)) {
+            el.classList.add('mc-day--blocked-cont-bottom');
+          }
+        }
 
         // Denied hover feedback
         if (this.mode === 'range' && fromDate && toDate && !this.endDate) {

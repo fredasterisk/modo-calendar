@@ -6,6 +6,26 @@
   pointer-events: none;
 }
 
+.mc-day--blocked.mc-day--blocked-cont-right {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+.mc-day--blocked.mc-day--blocked-cont-left {
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+}
+
+.mc-day--blocked.mc-day--blocked-cont-top {
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+}
+
+.mc-day--blocked.mc-day--blocked-cont-bottom {
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
 .mc-day--blocked.mc-day--in-range {
   background: repeating-linear-gradient(135deg, transparent, var(--mc-danger, #ef4444) 2px, transparent 0, transparent 4.25px);
 }
