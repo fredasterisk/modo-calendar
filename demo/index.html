@@ -114,6 +114,19 @@
 				</button>
 			</section>
 
+			<!-- 6b. Presets + dropdown (English) -->
+			<section class="space-y-2">
+				<h2 class="text-sm font-semibold text-slate-500 uppercase tracking-wide">6b. Presets + dropdown (English)</h2>
+				<button id="datepicker-presets-en" type="button"
+					class="flex items-center gap-3 min-w-[200px] max-w-[340px] bg-white border border-slate-200 rounded-lg px-3 pt-2 pb-1.5 text-left cursor-pointer hover:border-slate-400 transition-colors shadow-sm">
+					<svg class="w-5 h-5 text-slate-600 shrink-0" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M9 1V3H15V1H17V3H21C21.5523 3 22 3.44772 22 4V20C22 20.5523 21.5523 21 21 21H3C2.44772 21 2 20.5523 2 20V4C2 3.44772 2.44772 3 3 3H7V1H9ZM20 11H4V19H20V11ZM11 13V17H6V13H11ZM7 5H4V9H20V5H17V7H15V5H9V7H7V5Z"></path></svg>
+					<div>
+						<span class="block text-xs font-medium text-slate-500 leading-tight">With presets (EN)</span>
+						<span class="dates block text-sm text-slate-900 truncate max-w-[200px]">Pick a date...</span>
+					</div>
+				</button>
+			</section>
+
 			<!-- 7. i18n locale switching -->
 			<section class="space-y-2">
 				<h2 class="text-sm font-semibold text-slate-500 uppercase tracking-wide">7. i18n (switch FR ↔ EN)</h2>
@@ -262,6 +275,28 @@
 							presetRanges.nextWeekend(),
 							presetRanges.nextWeek(),
 							presetRanges.nextMonth(),
+						],
+					}),
+				],
+			});
+
+			// 6b. Presets + dropdown (English)
+			new ModoCalendar({
+				trigger: '#datepicker-presets-en',
+				mode: 'range',
+				locale: 'en-US',
+				weekStartsOn: 0,
+				plugins: [
+					monthsPlugin({ months: 2 }),
+					dropdownPlugin({ yearRange: [2024, 2027] }),
+					presetsPlugin({
+						presets: [
+							presetRanges.today('en'),
+							presetRanges.next7Days('en'),
+							presetRanges.thisWeekend('en'),
+							presetRanges.nextWeekend('en'),
+							presetRanges.nextWeek('en'),
+							presetRanges.nextMonth('en'),
 						],
 					}),
 				],
