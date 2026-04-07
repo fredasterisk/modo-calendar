@@ -802,6 +802,10 @@ export class ModoCalendar extends EventEmitter implements CalendarInstance {
         return;
       }
 
+      // Normalize: earlier date is always startDate (arrival), later is endDate (departure)
+      this.startDate = rangeStart;
+      this.endDate = rangeEnd;
+
       this.updateButtonLabel();
       this.updateDayClasses();
       this.updateHiddenInput();
