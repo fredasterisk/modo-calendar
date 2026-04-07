@@ -17,7 +17,8 @@ Supports single, range, and multiple date selection with advanced features like 
 - **i18n** — locale-aware formatting, runtime locale switching
 - **CSS custom properties** — fully themeable via `--mc-*` variables
 - **BEM class overrides** — `classNames` API for custom styling slots
-- **Zero dependencies** — ~22 kB gzipped (ESM)
+- **Accessible** — WCAG 2.1 compliant: `aria-modal`, focus trap, `aria-disabled` on blocked days, keyboard-navigable spinners
+- **Zero dependencies** — ~25 kB gzipped (ESM)
 
 ## Installation
 
@@ -103,17 +104,49 @@ timePlugin({
   pickerType: 'spinner',
   minuteStep: 15,
 });
+
+// Multiple dates with arrival/departure per date
+timePlugin({
+  arrivalDeparture: true,
+  pickerType: 'blocks',
+  from: '08:00',
+  to: '18:00',
+  interval: 60,
+});
 ```
 
-| Option          | Type                       | Default    | Description                     |
-| --------------- | -------------------------- | ---------- | ------------------------------- |
-| `from`          | `string`                   | `'08:00'`  | Start time (HH:MM)              |
-| `to`            | `string`                   | `'16:00'`  | End time (HH:MM)                |
-| `interval`      | `number`                   | `60`       | Block duration in minutes       |
-| `pickerType`    | `'blocks' \| 'spinner'`    | `'blocks'` | Picker UI type                  |
-| `minuteStep`    | `number`                   | `5`        | Minute increment for spinner    |
-| `disabledTimes` | `string[]`                 | `[]`       | Statically disabled time labels |
-| `isTimeBlocked` | `(time, dates) => boolean` | —          | Custom blocking callback        |
+| Option             | Type                       | Default    | Description                                               |
+| ------------------ | -------------------------- | ---------- | --------------------------------------------------------- |
+| `from`             | `string`                   | `'08:00'`  | Start time (HH:MM)                                        |
+| `to`               | `string`                   | `'16:00'`  | End time (HH:MM)                                          |
+| `interval`         | `number`                   | `60`       | Block duration in minutes                                 |
+| `pickerType`       | `'blocks' \| 'spinner'`    | `'blocks'` | Picker UI type                                            |
+| `minuteStep`       | `number`                   | `5`        | Minute increment for spinner                              |
+| `disabledTimes`    | `string[]`                 | `[]`       | Statically disabled time labels                           |
+| `isTimeBlocked`    | `(time, dates) => boolean` | —          | Custom blocking callback                                  |
+| `arrivalDeparture` | `boolean`                  | `false`    | Show arrival + departure pickers per date (multiple mode) |
+
+#### Arrival / Departure in multiple mode
+
+When `arrivalDeparture: true` is combined with `mode: 'multiple'`, each selected date shows two time pickers (arrival and departure) instead of one. The hidden input outputs per-date time pairs:
+
+```json
+{
+  "mode": "multiple",
+  "dates": [1713139200000, 1713225600000],
+  "timePairs": {
+    "1713139200000": {
+      "arrival": "09:00 - 10:00",
+      "departure": "16:00 - 17:00"
+    },
+    "1713225600000": { "arrival": null, "departure": null }
+  }
+}
+```
+
+Chips and button labels display the format: `15 avr. (09:00 → 17:00)`.
+
+In range mode, arrival/departure already works by default (no option needed) — the start date gets the arrival picker and the end date gets the departure picker.
 
 ### `lockPlugin`
 
@@ -217,6 +250,23 @@ presetsPlugin({
 });
 ```
 
+All preset labels are localized. Pass a language code to get translated labels:
+
+```ts
+presetsPlugin({
+  presets: [
+    presetRanges.today('en'), // "Today"
+    presetRanges.next7Days('en'), // "Next 7 days"
+    presetRanges.thisWeekend('es'), // "Este fin de semana"
+    presetRanges.nextMonth('de'), // "Nächster Monat"
+  ],
+});
+```
+
+Built-in languages: `fr` (default), `en`, `es`, `de`, `pt`. Without a language argument, labels default to French.
+
+````
+
 ### `dropdownPlugin`
 
 Month and year dropdown selectors in the calendar header.
@@ -225,7 +275,7 @@ Month and year dropdown selectors in the calendar header.
 import { dropdownPlugin } from 'modo-calendar';
 
 dropdownPlugin({ yearRange: [2024, 2027] });
-```
+````
 
 ### `i18nPlugin`
 
@@ -268,6 +318,36 @@ i18n.setLocale('en');
 | `showStatusMessages` | `boolean`                           | `true`    | Show validation feedback messages    |
 | `hiddenInput`        | `HTMLInputElement`                  | —         | Custom hidden input for form data    |
 
+## Instance API
+
+```ts
+const cal = new ModoCalendar({ ... });
+
+// Get current selection (works for all modes)
+const sel = cal.getSelection();
+// => { mode: 'range', dates: [Date, ...], start: Date, end: Date }
+// => { mode: 'multiple', dates: [Date, Date, ...], start: null, end: null }
+// => { mode: 'single', dates: [Date], start: Date, end: null }
+
+// Clear all selected dates/times
+cal.clearSelection();
+
+// Programmatically set a range
+cal.setRange('2026-04-10', '2026-04-15');
+
+// Status messages
+cal.setStatusMessage({ type: 'warning', text: 'Pick a weekday', autoHideDelay: 3000 });
+cal.clearStatusMessage();
+
+// Locale
+cal.setLocale('en-US');
+cal.setWeekStartsOn(0); // 0=Sun, 1=Mon
+cal.getResolvedLocale(); // => 'en-US'
+
+// Destroy
+cal.destroy();
+```
+
 ## Events
 
 ```ts
@@ -276,8 +356,13 @@ const cal = new ModoCalendar({ ... });
 cal.on('dateSelected', ({ date, mode }) => { ... });
 cal.on('dateDeselected', ({ date, mode }) => { ... });
 cal.on('rangeSelected', ({ start, end }) => { ... });
+cal.on('rangeCleared', () => { ... });
+cal.on('timeSelected', ({ date, time }) => { ... });
+cal.on('monthChanged', ({ date, direction }) => { ... });
 cal.on('calendarOpen', () => { ... });
 cal.on('calendarClose', () => { ... });
+cal.on('statusMessage', (state) => { ... });
+cal.on('localeChanged', ({ locale }) => { ... });
 ```
 
 ## Theming
@@ -311,6 +396,35 @@ npm run preview   # Preview production build
 - Plugins: `src/plugins/`
 - Core styles: `src/core/styles.css`
 - Demo: `demo/index.html`
+
+## Accessibility
+
+ModoCalendar follows WCAG 2.1 guidelines:
+
+- Focus trap inside the calendar popup (Tab / Shift+Tab cycle)
+- `aria-modal="true"` on the calendar container
+- `aria-disabled="true"` on blocked days (lock plugin)
+- `tabindex="0"` on spinner buttons for keyboard access
+- Preset groups use `role="group"` with `aria-selected` states
+- Focus returns to the trigger on Escape
+- Full keyboard navigation (arrow keys, Enter, Escape)
+
+## Plugin Hook Chain
+
+Plugins can override core methods cleanly using the hook chain system instead of monkey-patching:
+
+```ts
+// Inside a plugin's onInit:
+calendar._addHook('updateHiddenInput', (original) => {
+  return function () {
+    // Custom logic before/after/instead of original
+    original();
+  };
+});
+// Returns an unhook function to remove the override
+```
+
+Multiple plugins can hook the same method — hooks are chained in registration order.
 
 ## License
 
