@@ -1,15 +1,62 @@
 {
     "name": "modo-calendar",
     "version": "0.1.0",
-    "description": "Calendrier JavaScript sans dépendance",
+    "description": "A modern, zero-dependency date picker for the web. TypeScript-first, plugin-based, Shadow DOM encapsulated.",
     "type": "module",
+    "main": "./dist/modo-calendar.umd.js",
+    "module": "./dist/modo-calendar.es.js",
+    "types": "./dist/index.d.ts",
+    "exports": {
+        ".": {
+            "types": "./dist/index.d.ts",
+            "import": "./dist/modo-calendar.es.js",
+            "require": "./dist/modo-calendar.umd.js"
+        },
+        "./package.json": "./package.json"
+    },
+    "sideEffects": false,
+    "files": [
+        "dist",
+        "LICENSE",
+        "README.md",
+        "CHANGELOG.md"
+    ],
     "scripts": {
         "dev": "vite --host",
         "build": "vite build",
-        "preview": "vite preview"
+        "preview": "vite preview",
+        "prepublishOnly": "npm run build"
+    },
+    "keywords": [
+        "calendar",
+        "datepicker",
+        "date-picker",
+        "date-range",
+        "time-picker",
+        "vanilla",
+        "typescript",
+        "shadow-dom",
+        "zero-dependency",
+        "i18n",
+        "accessible",
+        "wcag"
+    ],
+    "author": "Frédéric Robert <web@fredrobert.com>",
+    "license": "MIT",
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/fredasterisk/modo-calendar.git"
+    },
+    "homepage": "https://github.com/fredasterisk/modo-calendar#readme",
+    "bugs": {
+        "url": "https://github.com/fredasterisk/modo-calendar/issues"
+    },
+    "engines": {
+        "node": ">=18"
     },
     "devDependencies": {
         "typescript": "^6.0.2",
-        "vite": "^5.4.19"
+        "vite": "^5.4.19",
+        "vite-plugin-dts": "^5.0.0"
     }
 }
