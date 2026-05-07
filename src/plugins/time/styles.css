@@ -7,6 +7,19 @@
   border-top: 1px solid var(--mc-border, #e2e8f0);
 }
 
+/* Time-only mode: hide calendar grid + header, drop the panel's top border */
+.mc-calendar.mc-time-only .mc-days,
+.mc-calendar.mc-time-only .mc-header,
+.mc-calendar.mc-time-only .mc-months-wrapper {
+  display: none;
+}
+
+.mc-calendar.mc-time-only .mc-time-panel {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: none;
+}
+
 /* Block picker grid */
 .mc-time-blocks {
   display: flex;

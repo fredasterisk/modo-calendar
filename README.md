@@ -113,18 +113,29 @@ timePlugin({
   to: '18:00',
   interval: 60,
 });
+
+// Time-only (calendar grid hidden, fixed date)
+timePlugin({
+  hideCalendar: true,
+  date: '2026-04-20',
+  from: '09:00',
+  to: '17:00',
+  interval: 30,
+});
 ```
 
-| Option             | Type                       | Default    | Description                                               |
-| ------------------ | -------------------------- | ---------- | --------------------------------------------------------- |
-| `from`             | `string`                   | `'08:00'`  | Start time (HH:MM)                                        |
-| `to`               | `string`                   | `'16:00'`  | End time (HH:MM)                                          |
-| `interval`         | `number`                   | `60`       | Block duration in minutes                                 |
-| `pickerType`       | `'blocks' \| 'spinner'`    | `'blocks'` | Picker UI type                                            |
-| `minuteStep`       | `number`                   | `5`        | Minute increment for spinner                              |
-| `disabledTimes`    | `string[]`                 | `[]`       | Statically disabled time labels                           |
-| `isTimeBlocked`    | `(time, dates) => boolean` | —          | Custom blocking callback                                  |
-| `arrivalDeparture` | `boolean`                  | `false`    | Show arrival + departure pickers per date (multiple mode) |
+| Option             | Type                       | Default    | Description                                                                                |
+| ------------------ | -------------------------- | ---------- | ------------------------------------------------------------------------------------------ |
+| `from`             | `string`                   | `'08:00'`  | Start time (HH:MM)                                                                         |
+| `to`               | `string`                   | `'16:00'`  | End time (HH:MM)                                                                           |
+| `interval`         | `number`                   | `60`       | Block duration in minutes                                                                  |
+| `pickerType`       | `'blocks' \| 'spinner'`    | `'blocks'` | Picker UI type                                                                             |
+| `minuteStep`       | `number`                   | `5`        | Minute increment for spinner                                                               |
+| `disabledTimes`    | `string[]`                 | `[]`       | Statically disabled time labels                                                            |
+| `isTimeBlocked`    | `(time, dates) => boolean` | —          | Custom blocking callback                                                                   |
+| `arrivalDeparture` | `boolean`                  | `false`    | Show arrival + departure pickers per date (multiple mode)                                  |
+| `hideCalendar`     | `boolean`                  | `false`    | Hide the calendar grid + header to render only the time picker. Requires `date`.           |
+| `date`             | `string \| Date`           | —          | Fixed date for time-only flows. `"YYYY-MM-DD"` string or `Date`. Required with `hideCalendar`. |
 
 #### Arrival / Departure in multiple mode
 

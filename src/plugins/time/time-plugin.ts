@@ -96,6 +96,22 @@ export interface TimePluginOptions {
   disabledTimes?: string[];
   isTimeBlocked?: (time: string, dates: Date[]) => boolean;
   arrivalDeparture?: boolean;
+  /** Hide the calendar grid and header to render only the time picker for a fixed date. Requires `date`. */
+  hideCalendar?: boolean;
+  /** Fixed date for time-only flows. Accepts a Date instance or a "YYYY-MM-DD" string. Required when `hideCalendar` is true. */
+  date?: string | Date;
+}
+
+function _parseFixedDate(d: string | Date | undefined): Date | null {
+  if (!d) return null;
+  if (d instanceof Date) return isNaN(d.getTime()) ? null : d;
+  if (typeof d === 'string') {
+    const m = d.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (m) return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+    const fallback = new Date(d);
+    return isNaN(fallback.getTime()) ? null : fallback;
+  }
+  return null;
 }
 
 export function timePlugin(options: TimePluginOptions = {}): CalendarPlugin {
@@ -131,6 +147,29 @@ export function timePlugin(options: TimePluginOptions = {}): CalendarPlugin {
         _lastDateClicked: null,
       };
       calendar.selectedTimes = {};
+
+      // Time-only mode: seed the fixed date so the time picker renders immediately.
+      if (options.hideCalendar) {
+        const fixed = _parseFixedDate(options.date);
+        if (!fixed) {
+          console.warn(
+            `[ModoCalendar:timePlugin] hideCalendar=true requires a valid 'date' option (Date instance or "YYYY-MM-DD" string). Falling back to interactive calendar.`,
+          );
+        } else {
+          calendar.date = new Date(fixed);
+          calendar.selectedDate = fixed;
+          calendar.startDate = fixed;
+          if (calendar.mode === 'multiple') {
+            if (!calendar.selectedDates.some((d) => d.getTime() === fixed.getTime())) {
+              calendar.selectedDates.push(fixed);
+            }
+          } else if (calendar.mode === 'single') {
+            // Push so the updateHiddenInput hook (which expects selectedDates.length === 1) serializes time data.
+            calendar.selectedDates = [fixed];
+          }
+          calendar._timePluginState._lastDateClicked = fixed;
+        }
+      }
 
       // Hook: updateHiddenInput — include time data
       const unhookHiddenInput = calendar._addHook('updateHiddenInput', (original) => {
@@ -298,6 +337,11 @@ export function timePlugin(options: TimePluginOptions = {}): CalendarPlugin {
 
       const container = calendar.container;
       if (!container) return;
+
+      // Time-only mode: tag the container so CSS hides the calendar grid + header.
+      if (options.hideCalendar) {
+        container.classList.add('mc-time-only');
+      }
 
       const state = calendar._timePluginState;
       if (!state) return;

@@ -127,6 +127,19 @@
 				</button>
 			</section>
 
+			<!-- 6c. Time-only (hideCalendar) -->
+			<section class="space-y-2">
+				<h2 class="text-sm font-semibold text-slate-500 uppercase tracking-wide">6c. Time-only (hideCalendar + date fixe)</h2>
+				<button id="datepicker-time-only" type="button"
+					class="flex items-center gap-3 min-w-[200px] max-w-[340px] bg-white border border-slate-200 rounded-lg px-3 pt-2 pb-1.5 text-left cursor-pointer hover:border-slate-400 transition-colors shadow-sm">
+					<svg class="w-5 h-5 text-slate-600 shrink-0" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M12 22C6.47715 22 2 17.5228 2 12C2 6.47715 6.47715 2 12 2C17.5228 2 22 6.47715 22 12C22 17.5228 17.5228 22 12 22ZM13 12V7H11V14H17V12H13Z"></path></svg>
+					<div>
+						<span class="block text-xs font-medium text-slate-500 leading-tight">Créneau du 20 avril 2026</span>
+						<span class="dates block text-sm text-slate-900 truncate max-w-[200px]">Choisir une heure...</span>
+					</div>
+				</button>
+			</section>
+
 			<!-- 7. i18n locale switching -->
 			<section class="space-y-2">
 				<h2 class="text-sm font-semibold text-slate-500 uppercase tracking-wide">7. i18n (switch FR ↔ EN)</h2>
@@ -298,6 +311,21 @@
 							presetRanges.nextWeek('en'),
 							presetRanges.nextMonth('en'),
 						],
+					}),
+				],
+			});
+
+			// 6c. Time-only (hideCalendar + date fixe)
+			new ModoCalendar({
+				trigger: '#datepicker-time-only',
+				mode: 'single',
+				plugins: [
+					timePlugin({
+						hideCalendar: true,
+						date: '2026-04-20',
+						from: '09:00',
+						to: '17:00',
+						interval: 30,
 					}),
 				],
 			});
