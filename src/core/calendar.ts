@@ -21,6 +21,7 @@ import { getLocale, getOrderedDayNames, formatDateDisplay, getMonthName } from '
 import { animateSlide, animateOpen, animateClose, animateSelect, animateShake, staggerFadeIn, shouldAnimate } from './animations';
 import { attachGestures } from './gestures';
 import { installReactiveState } from './state';
+import { positionPopup } from './positioning';
 
 function parseYMDToDate(str: string): Date {
   const [y, m, d] = str.split('-').map(Number);
@@ -88,6 +89,7 @@ export class ModoCalendar extends EventEmitter implements CalendarInstance {
   _lockInitOptions?: Record<string, unknown>;
   _hoverRaf = 0;
   _cleanupGestures: (() => void) | null = null;
+  _repositionHandler: (() => void) | null = null;
   _useShadow: boolean;
   _batchStart?: () => void;
   _batchEnd?: () => void;
@@ -324,8 +326,8 @@ export class ModoCalendar extends EventEmitter implements CalendarInstance {
       if (i !== this) i.hideCalendar();
     });
 
-    const rect = this.trigger.getBoundingClientRect();
     const host = this.shadowHost!;
+    const trigger = this.trigger;
 
     // Check if should show as bottom sheet (mobile)
     const isMobile = window.innerWidth < 640;
@@ -340,9 +342,23 @@ export class ModoCalendar extends EventEmitter implements CalendarInstance {
       if (this.classNames.bottomSheet) this.container.classList.add(...this.classNames.bottomSheet.split(' '));
     } else {
       host.style.position = 'absolute';
-      host.style.left = rect.left + window.scrollX + 'px';
-      host.style.top = rect.bottom + window.scrollY + 'px';
+      host.style.right = '';
+      host.style.bottom = '';
       this.container.classList.remove('mc-bottom-sheet');
+
+      // Make container measurable, then place it. animateOpen will keep display:block.
+      this.container.style.display = 'block';
+      positionPopup(host, trigger);
+
+      // Reposition on resize and on any scroll (capture-phase to catch scrollable containers).
+      // Skip when the viewport has shrunk below the mobile breakpoint — the bottom sheet
+      // takes over via CSS / re-open and absolute positioning would fight it.
+      this._repositionHandler = () => {
+        if (window.innerWidth < 640) return;
+        positionPopup(host, trigger);
+      };
+      window.addEventListener('resize', this._repositionHandler);
+      window.addEventListener('scroll', this._repositionHandler, true);
     }
 
     animateOpen(this.container);
@@ -360,6 +376,12 @@ export class ModoCalendar extends EventEmitter implements CalendarInstance {
     if (this.options.inline || !this.container) return;
     cancelAnimationFrame(this._hoverRaf);
 
+    if (this._repositionHandler) {
+      window.removeEventListener('resize', this._repositionHandler);
+      window.removeEventListener('scroll', this._repositionHandler, true);
+      this._repositionHandler = null;
+    }
+
     animateClose(this.container);
     this.plugins?.forEach((p) => p.onCalendarClose?.(this));
     this.emit('calendarClose', undefined as never);
@@ -368,6 +390,11 @@ export class ModoCalendar extends EventEmitter implements CalendarInstance {
   destroy(): void {
     cancelAnimationFrame(this._hoverRaf);
     this._cleanupGestures?.();
+    if (this._repositionHandler) {
+      window.removeEventListener('resize', this._repositionHandler);
+      window.removeEventListener('scroll', this._repositionHandler, true);
+      this._repositionHandler = null;
+    }
     this.plugins.forEach((p) => p.onDestroy?.(this));
     this.removeAllListeners();
     this.shadowHost?.remove();
