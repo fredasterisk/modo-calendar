@@ -91,6 +91,10 @@ export interface CalendarOptions {
   // Custom CSS injected into the shadow root (or document.head in light DOM) AFTER the core
   // and plugin styles, so consumers can override anything without rebuilding the library.
   customCSS?: string | string[];
+  // External stylesheet URLs injected as <link rel="stylesheet"> into the shadow root.
+  // Loaded with HTTP cache benefits — pass the same URL to multiple calendars to share
+  // a single download. Injected BEFORE `customCSS` so inline rules can override the file.
+  customCSSUrls?: string | string[];
 
   // Range validation
   minRangeNights?: number;

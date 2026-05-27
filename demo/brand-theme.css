@@ -1,0 +1,22 @@
+/* demo/brand-theme.css — a tiny "design system" example shared via customCSSUrls.
+   Loaded by the demo's section 8 to show how multiple calendars could share a theme. */
+
+.mc-host {
+  --mc-accent: #16a34a;
+  --mc-accent-hover: #15803d;
+  --mc-accent-light: rgba(22, 163, 74, 0.10);
+  --mc-cell-radius: 0px;
+  --mc-radius: 0px;
+  --mc-font: 'Inter', system-ui, sans-serif;
+}
+
+/* Slight letter-spacing for the brand */
+.mc-month-label {
+  letter-spacing: 0.02em;
+  font-weight: 600;
+}
+
+/* Bolder selected day */
+.mc-day--selected {
+  font-weight: 700;
+}

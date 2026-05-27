@@ -402,6 +402,38 @@ export class ModoCalendar extends EventEmitter implements CalendarInstance {
   }
 
   private _injectCustomCSS(): void {
+    // 1) External stylesheets first — inline customCSS overrides them in the cascade.
+    const urlsRaw = this.options.customCSSUrls;
+    if (urlsRaw) {
+      const urls = (Array.isArray(urlsRaw) ? urlsRaw : [urlsRaw])
+        .filter((u) => typeof u === 'string' && u.trim().length > 0);
+
+      if (this._useShadow && this.shadowRoot) {
+        // Shadow DOM: each calendar has its own root, append a <link> per URL.
+        for (const href of urls) {
+          const link = document.createElement('link');
+          link.rel = 'stylesheet';
+          link.href = href;
+          link.className = 'mc-custom-css-url';
+          this.shadowRoot.appendChild(link);
+        }
+      } else {
+        // Light DOM: dedupe by href across all instances so the same file isn't
+        // appended N times. Tagged with a data attribute for cleanup.
+        for (const href of urls) {
+          const selector = `link[data-mc-custom-css-url="${CSS.escape(href)}"]`;
+          if (!document.head.querySelector(selector)) {
+            const link = document.createElement('link');
+            link.rel = 'stylesheet';
+            link.href = href;
+            link.dataset.mcCustomCssUrl = href;
+            document.head.appendChild(link);
+          }
+        }
+      }
+    }
+
+    // 2) Inline customCSS — always last so it can override the external sheets.
     const raw = this.options.customCSS;
     if (!raw) return;
     const sheets = Array.isArray(raw) ? raw : [raw];
