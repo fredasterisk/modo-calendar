@@ -88,9 +88,16 @@ export interface CalendarOptions {
   // Status messages
   showStatusMessages?: boolean;
 
+  // Custom CSS injected into the shadow root (or document.head in light DOM) AFTER the core
+  // and plugin styles, so consumers can override anything without rebuilding the library.
+  customCSS?: string | string[];
+
   // Range validation
   minRangeNights?: number;
   maxRangeNights?: number;
+  // When set, range mode collapses to single-click: clicking a date selects a fixed-width
+  // range of N consecutive days (rangeSize === N). minRangeNights/maxRangeNights are ignored.
+  rangeSize?: number;
 
   // Multiple selection validation
   minMultipleDates?: number;

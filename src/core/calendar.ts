@@ -80,6 +80,7 @@ export class ModoCalendar extends EventEmitter implements CalendarInstance {
   classNames: Partial<CalendarClassNames>;
 
   _initialLabelValue: string | null = null;
+  _isOpen = false;
   _timePluginState: { selectedTimes: Record<number, string>; selectedTimePairs: Record<number, { arrival: string | null; departure: string | null }>; _lastDateClicked: Date | null } = {
     selectedTimes: {},
     selectedTimePairs: {},
@@ -248,6 +249,7 @@ export class ModoCalendar extends EventEmitter implements CalendarInstance {
       }
     }
 
+
     // Main container
     this.container = document.createElement('div');
     this.container.className = this._cls('mc-calendar', 'calendar');
@@ -260,6 +262,9 @@ export class ModoCalendar extends EventEmitter implements CalendarInstance {
 
     // Notify plugins of shadow/DOM ready
     this.plugins.forEach((p) => p.onShadowReady?.(this));
+
+    // Custom CSS — appended last so it can override core + plugin styles.
+    this._injectCustomCSS();
 
     // Hidden input for form integration
     if (this.options.hiddenInput) {
@@ -283,7 +288,12 @@ export class ModoCalendar extends EventEmitter implements CalendarInstance {
       this.container.style.display = 'none';
       btn?.addEventListener('click', (e: Event) => {
         e.stopPropagation();
-        this.showCalendar();
+        // Toggle: clicking the trigger while open closes the popup
+        if (this._isOpen) {
+          this.hideCalendar();
+        } else {
+          this.showCalendar();
+        }
       });
       document.addEventListener('click', (e: MouseEvent) => {
         const path = e.composedPath ? e.composedPath() : [];
@@ -320,6 +330,8 @@ export class ModoCalendar extends EventEmitter implements CalendarInstance {
 
   showCalendar(): void {
     if (this.options.inline || !this.container || !this.trigger) return;
+    if (this._isOpen) return;
+    this._isOpen = true;
 
     // Close other instances
     ModoCalendar.instances.forEach((i) => {
@@ -374,6 +386,8 @@ export class ModoCalendar extends EventEmitter implements CalendarInstance {
 
   hideCalendar(): void {
     if (this.options.inline || !this.container) return;
+    if (!this._isOpen) return;
+    this._isOpen = false;
     cancelAnimationFrame(this._hoverRaf);
 
     if (this._repositionHandler) {
@@ -385,6 +399,32 @@ export class ModoCalendar extends EventEmitter implements CalendarInstance {
     animateClose(this.container);
     this.plugins?.forEach((p) => p.onCalendarClose?.(this));
     this.emit('calendarClose', undefined as never);
+  }
+
+  private _injectCustomCSS(): void {
+    const raw = this.options.customCSS;
+    if (!raw) return;
+    const sheets = Array.isArray(raw) ? raw : [raw];
+    const css = sheets.filter((s) => typeof s === 'string' && s.trim().length > 0).join('\n');
+    if (!css) return;
+
+    if (this._useShadow && this.shadowRoot) {
+      const styleEl = document.createElement('style');
+      styleEl.className = 'mc-custom-css';
+      styleEl.textContent = css;
+      this.shadowRoot.appendChild(styleEl);
+    } else {
+      // Light DOM — scope is global. Use a per-instance id so multiple instances
+      // with different customCSS coexist; clean up in destroy().
+      const id = `mc-custom-css-${ModoCalendar.instances.indexOf(this)}`;
+      let styleEl = document.getElementById(id) as HTMLStyleElement | null;
+      if (!styleEl) {
+        styleEl = document.createElement('style');
+        styleEl.id = id;
+        document.head.appendChild(styleEl);
+      }
+      styleEl.textContent = css;
+    }
   }
 
   destroy(): void {
@@ -400,7 +440,13 @@ export class ModoCalendar extends EventEmitter implements CalendarInstance {
     this.shadowHost?.remove();
     this.hiddenInput?.remove();
     const idx = ModoCalendar.instances.indexOf(this);
-    if (idx > -1) ModoCalendar.instances.splice(idx, 1);
+    if (idx > -1) {
+      // Remove per-instance custom CSS in light DOM (no-op in shadow mode — it goes with the host)
+      if (!this._useShadow) {
+        document.getElementById(`mc-custom-css-${idx}`)?.remove();
+      }
+      ModoCalendar.instances.splice(idx, 1);
+    }
   }
 
   // --- Navigation ---
@@ -617,13 +663,30 @@ export class ModoCalendar extends EventEmitter implements CalendarInstance {
     // Hover delegation with rAF throttling
     daysContainer.addEventListener('mouseover', (e) => {
       const dayEl = (e.target as HTMLElement).closest('.mc-day') as (HTMLElement & { _date?: Date }) | null;
-      if (!dayEl?._date || !this.startDate || this.endDate) return;
+      if (!dayEl?._date) return;
+
+      // Normal range: track hover only between the two clicks.
+      // rangeSize: always track — the preview overrides the persisted selection so users
+      // see where a new click would land, even after a previous selection.
+      const rangeSize = this.options.rangeSize as number | undefined;
+      const inSizePreview = this.mode === 'range' && typeof rangeSize === 'number' && rangeSize >= 1;
+      const inStandardHover = !!this.startDate && !this.endDate;
+      if (!inSizePreview && !inStandardHover) return;
 
       cancelAnimationFrame(this._hoverRaf);
       this._hoverRaf = requestAnimationFrame(() => {
         this.hoverDate = dayEl._date!;
         this.updateDayClasses();
       });
+    });
+
+    // Restore the persisted selection when the cursor leaves the grid in rangeSize mode.
+    daysContainer.addEventListener('mouseleave', () => {
+      const rangeSize = this.options.rangeSize as number | undefined;
+      if (this.mode === 'range' && typeof rangeSize === 'number' && rangeSize >= 1 && this.hoverDate) {
+        cancelAnimationFrame(this._hoverRaf);
+        this.hoverDate = null;
+      }
     });
 
     return daysContainer;
@@ -725,6 +788,23 @@ export class ModoCalendar extends EventEmitter implements CalendarInstance {
     const selectedTime = selected.getTime();
 
     if (this.mode === 'single') {
+      // Toggle: clicking the already-selected date deselects.
+      if (this.selectedDate && isSameDay(this.selectedDate, selected)) {
+        this.selectedDate = null;
+        this.startDate = null;
+        // Clear any cached time data for this date so the time picker doesn't reappear.
+        if (this._timePluginState) {
+          const utcKey = new Date(Date.UTC(selected.getFullYear(), selected.getMonth(), selected.getDate())).getTime();
+          delete this._timePluginState.selectedTimes[utcKey];
+          this._timePluginState._lastDateClicked = null;
+        }
+        this.updateButtonLabel();
+        this.updateDayClasses();
+        this.updateHiddenInput();
+        this.renderCalendar();
+        this.emit('dateDeselected', { date: selected, mode: this.mode });
+        return;
+      }
       this.selectedDate = selected;
       this.startDate = selected;
       this.updateButtonLabel();
@@ -778,6 +858,30 @@ export class ModoCalendar extends EventEmitter implements CalendarInstance {
     // Range mode
     const today = toMidnight(new Date());
     const isBeforeToday = selected < today;
+
+    // rangeSize: single-click fixed-width range
+    const rangeSize = this.options.rangeSize as number | undefined;
+    if (this.mode === 'range' && typeof rangeSize === 'number' && rangeSize >= 1 && !isBeforeToday) {
+      const end = new Date(selected.getFullYear(), selected.getMonth(), selected.getDate() + rangeSize - 1);
+      this.startDate = selected;
+      this.endDate = end;
+      this.hoverDate = null;
+      this.updateButtonLabel();
+      this.updateDayClasses();
+      this.updateHiddenInput();
+      this.emit('rangeSelected', { start: selected, end });
+
+      // If time plugin is present, re-render to expose the time pickers.
+      // Otherwise close the popup (matches the standard 2-click range behavior).
+      const hasTimePlugin = this.plugins?.some((p) => p.name === 'timePlugin');
+      if (hasTimePlugin) {
+        this.renderCalendar();
+      } else if (!this.options.inline) {
+        this.hideCalendar();
+      }
+      this.plugins?.forEach((p) => p.onDateSelected?.(selected, this));
+      return;
+    }
 
     if (this.mode === 'range' && this.months === 2 && this.strictRange2Months) {
       if (!this.startDate || (this.startDate && this.endDate)) {
@@ -842,8 +946,8 @@ export class ModoCalendar extends EventEmitter implements CalendarInstance {
       const hasTimePlugin = this.plugins?.some((p) => p.name === 'timePlugin');
       if (hasTimePlugin) {
         this.renderCalendar();
-      } else if (!this.options.inline && this.container) {
-        animateClose(this.container);
+      } else if (!this.options.inline) {
+        this.hideCalendar();
       }
       return;
     } else {
@@ -971,6 +1075,23 @@ export class ModoCalendar extends EventEmitter implements CalendarInstance {
         } else if (dateTime > minTime && dateTime < maxTime) {
           el.classList.add('mc-day--in-range');
           if (this.classNames.dayInRange) el.classList.add(...this.classNames.dayInRange.split(' '));
+        }
+      }
+
+      // rangeSize hover preview — pale continuous band on the N-day group the next click
+      // would pick. Coexists with any persisted selection: the preview classes are
+      // overridden by .mc-day--selected / --in-range / --range-* on cells already
+      // part of the active range. Endpoints get rounded corners; middles are square.
+      const rangeSize = this.options.rangeSize as number | undefined;
+      if (this.mode === 'range' && typeof rangeSize === 'number' && rangeSize >= 1 && this.hoverDate) {
+        const hoverMid = toMidnight(this.hoverDate).getTime();
+        const endMid = toMidnight(new Date(this.hoverDate.getFullYear(), this.hoverDate.getMonth(), this.hoverDate.getDate() + rangeSize - 1)).getTime();
+        const dateTime = toMidnight(date).getTime();
+
+        if (dateTime >= hoverMid && dateTime <= endMid) {
+          el.classList.add('mc-day--preview');
+          if (dateTime === hoverMid) el.classList.add('mc-day--preview-start');
+          if (dateTime === endMid) el.classList.add('mc-day--preview-end');
         }
       }
 

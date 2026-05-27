@@ -262,6 +262,24 @@
   border-radius: var(--mc-cell-radius);
 }
 
+/* Range-size hover preview — pale continuous band that doesn't replace the persisted selection.
+   Endpoints get rounded corners; middle cells are square so the band reads as one rectangle. */
+.mc-day--preview:not(:is(.mc-day--selected, .mc-day--in-range, .mc-day--range-start, .mc-day--range-end, .mc-day--disabled, .mc-day--blocked)) {
+  background: var(--mc-muted);
+  color: var(--mc-fg);
+  border-radius: 0;
+}
+
+.mc-day--preview-start:not(:is(.mc-day--selected, .mc-day--in-range, .mc-day--range-start, .mc-day--range-end, .mc-day--disabled, .mc-day--blocked)) {
+  border-top-left-radius: var(--mc-cell-radius);
+  border-bottom-left-radius: var(--mc-cell-radius);
+}
+
+.mc-day--preview-end:not(:is(.mc-day--selected, .mc-day--in-range, .mc-day--range-start, .mc-day--range-end, .mc-day--disabled, .mc-day--blocked)) {
+  border-top-right-radius: var(--mc-cell-radius);
+  border-bottom-right-radius: var(--mc-cell-radius);
+}
+
 /* Denied */
 .mc-day--denied:not(.mc-day--range-start):not(.mc-day--range-end) {
   background: repeating-linear-gradient(

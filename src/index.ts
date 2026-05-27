@@ -42,3 +42,6 @@ export type { PresetsPluginOptions, PresetRange } from './plugins/presets/preset
 
 export { i18nPlugin } from './plugins/i18n/i18n-plugin';
 export type { I18nPluginOptions, I18nLocaleEntry, I18nFormatContext } from './plugins/i18n/i18n-plugin';
+
+export { dayInfoPlugin } from './plugins/day-info/day-info-plugin';
+export type { DayInfoPluginOptions, DayInfo } from './plugins/day-info/day-info-plugin';

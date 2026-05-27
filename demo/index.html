@@ -158,6 +158,45 @@
 					</button>
 				</div>
 			</section>
+
+			<!-- 8. customCSS (override accent + radius via raw CSS) -->
+			<section class="space-y-2">
+				<h2 class="text-sm font-semibold text-slate-500 uppercase tracking-wide">8. customCSS (override via CSS brut)</h2>
+				<button id="datepicker-custom-css" type="button"
+					class="flex items-center gap-3 min-w-[200px] max-w-[340px] bg-white border border-slate-200 rounded-lg px-3 pt-2 pb-1.5 text-left cursor-pointer hover:border-slate-400 transition-colors shadow-sm">
+					<svg class="w-5 h-5 text-slate-600 shrink-0" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M9 1V3H15V1H17V3H21C21.5523 3 22 3.44772 22 4V20C22 20.5523 21.5523 21 21 21H3C2.44772 21 2 20.5523 2 20V4C2 3.44772 2.44772 3 3 3H7V1H9ZM20 11H4V19H20V11ZM11 13V17H6V13H11ZM7 5H4V9H20V5H17V7H15V5H9V7H7V5Z"></path></svg>
+					<div>
+						<span class="block text-xs font-medium text-slate-500 leading-tight">CSS custom (accent vert, cellules carrées)</span>
+						<span class="dates block text-sm text-slate-900 truncate max-w-[200px]">Choisir...</span>
+					</div>
+				</button>
+			</section>
+
+			<!-- 9. rangeSize (single-click pose un range de 3 jours) -->
+			<section class="space-y-2">
+				<h2 class="text-sm font-semibold text-slate-500 uppercase tracking-wide">9. rangeSize: 3 (single-click = 3 jours)</h2>
+				<button id="datepicker-rangesize" type="button"
+					class="flex items-center gap-3 min-w-[200px] max-w-[340px] bg-white border border-slate-200 rounded-lg px-3 pt-2 pb-1.5 text-left cursor-pointer hover:border-slate-400 transition-colors shadow-sm">
+					<svg class="w-5 h-5 text-slate-600 shrink-0" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M9 1V3H15V1H17V3H21C21.5523 3 22 3.44772 22 4V20C22 20.5523 21.5523 21 21 21H3C2.44772 21 2 20.5523 2 20V4C2 3.44772 2.44772 3 3 3H7V1H9ZM20 11H4V19H20V11ZM11 13V17H6V13H11ZM7 5H4V9H20V5H17V7H15V5H9V7H7V5Z"></path></svg>
+					<div>
+						<span class="block text-xs font-medium text-slate-500 leading-tight">Forfait 3 jours (hover montre le groupe)</span>
+						<span class="dates block text-sm text-slate-900 truncate max-w-[200px]">Choisir...</span>
+					</div>
+				</button>
+			</section>
+
+			<!-- 10. dayInfo (puces + tooltip) -->
+			<section class="space-y-2">
+				<h2 class="text-sm font-semibold text-slate-500 uppercase tracking-wide">10. dayInfo (puces colorées + tooltip)</h2>
+				<button id="datepicker-dayinfo" type="button"
+					class="flex items-center gap-3 min-w-[200px] max-w-[340px] bg-white border border-slate-200 rounded-lg px-3 pt-2 pb-1.5 text-left cursor-pointer hover:border-slate-400 transition-colors shadow-sm">
+					<svg class="w-5 h-5 text-slate-600 shrink-0" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M9 1V3H15V1H17V3H21C21.5523 3 22 3.44772 22 4V20C22 20.5523 21.5523 21 21 21H3C2.44772 21 2 20.5523 2 20V4C2 3.44772 2.44772 3 3 3H7V1H9ZM20 11H4V19H20V11ZM11 13V17H6V13H11ZM7 5H4V9H20V5H17V7H15V5H9V7H7V5Z"></path></svg>
+					<div>
+						<span class="block text-xs font-medium text-slate-500 leading-tight">Pastilles de disponibilité</span>
+						<span class="dates block text-sm text-slate-900 truncate max-w-[200px]">Choisir...</span>
+					</div>
+				</button>
+			</section>
 		</div>
 
 		<script type="module">
@@ -170,6 +209,7 @@
 				presetsPlugin,
 				presetRanges,
 				i18nPlugin,
+				dayInfoPlugin,
 			} from '/src/index.ts';
 
 			// 1. Date simple
@@ -351,6 +391,63 @@
 				currentLang = currentLang === 'fr' ? 'en' : 'fr';
 				i18n.setLocale(currentLang);
 				document.getElementById('toggle-locale').textContent = currentLang === 'fr' ? 'Switch to EN' : 'Switch to FR';
+			});
+
+			// 8. customCSS — override accent + cell radius without rebuilding
+			new ModoCalendar({
+				trigger: '#datepicker-custom-css',
+				mode: 'range',
+				plugins: [monthsPlugin({ months: 2 })],
+				customCSS: `
+					.mc-host { --mc-accent: #16a34a; --mc-accent-hover: #15803d; --mc-accent-light: rgba(22, 163, 74, 0.10); }
+					.mc-day, .mc-day--selected, .mc-day--range-start, .mc-day--range-end { border-radius: 0 !important; }
+					.mc-day--selected { font-weight: 700; }
+				`,
+			});
+
+			// 9. rangeSize — single-click selects a fixed-width 3-day range
+			new ModoCalendar({
+				trigger: '#datepicker-rangesize',
+				mode: 'range',
+				rangeSize: 3,
+				plugins: [monthsPlugin({ months: 2 })],
+			});
+
+			// 10. dayInfo — color dots + custom tooltip (text or Node) per date
+			// Toy availability data: green=available, amber=low, red=full
+			// Helper: parse a trusted HTML string to a DocumentFragment.
+			// Use ONLY with strings you control (templates, never user input).
+			const htmlTip = (html) => {
+				const t = document.createElement('template');
+				t.innerHTML = html;
+				return t.content;
+			};
+			const availability = {
+				'2026-05-28': { dots: ['#22c55e'], tooltip: '5 chambres disponibles' },
+				'2026-05-29': {
+					dots: ['#22c55e', '#f59e0b'],
+					tooltip: htmlTip('<strong>2 chambres</strong><br><span style="opacity:.8">tarif élevé · saison haute</span>'),
+				},
+				'2026-05-30': { dots: ['#ef4444'], tooltip: 'Complet' },
+				'2026-06-02': {
+					dots: ['#22c55e', '#22c55e', '#22c55e'],
+					tooltip: htmlTip('<div style="text-align:left"><strong>Toutes options libres</strong><br>• Standard — 120 $<br>• Deluxe — 180 $<br>• Suite — 240 $</div>'),
+				},
+				'2026-06-05': { dots: ['#3b82f6'], tooltip: 'Événement local : marché' },
+				'2026-06-10': { dots: ['#ef4444', '#f59e0b'], tooltip: 'Presque complet' },
+			};
+			function ymd(d) {
+				return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+			}
+			new ModoCalendar({
+				trigger: '#datepicker-dayinfo',
+				mode: 'single',
+				plugins: [
+					monthsPlugin({ months: 2 }),
+					dayInfoPlugin({
+						getDayInfo: (date) => availability[ymd(date)] || null,
+					}),
+				],
 			});
 		</script>
 	</body>
