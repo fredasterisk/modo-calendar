@@ -2,14 +2,14 @@
 
 .mc-day {
   /* Reserve a few px at the bottom so the dots don't overlap the number */
-  padding-bottom: 0.25rem;
+  /* padding-bottom: 0.25rem; */
 }
 
 .mc-day-dots {
   position: absolute;
   left: 0;
   right: 0;
-  bottom: 0.375rem;
+  bottom: 0.25rem;
   display: flex;
   justify-content: center;
   align-items: center;

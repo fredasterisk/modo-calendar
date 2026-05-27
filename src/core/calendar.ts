@@ -201,9 +201,17 @@ export class ModoCalendar extends EventEmitter implements CalendarInstance {
   private _rebuildHook(method: string): void {
     const reg = this._hookRegistry.get(method);
     if (!reg) return;
+    // `reg.original` is already bound to `this`. Each composed layer below
+    // must ALSO be bound, otherwise wrappers that call the inner via plain
+    // `original()` (instead of `original.call(this)`) lose context — the
+    // inner runs with `this === undefined` (strict mode) and crashes the
+    // moment it reads `this.dayElements`, `this._lockRules`, etc.
+    // Binding every layer here means individual plugins can stay simple:
+    // `(original) => function () { original(); ... use this ... }` always
+    // works, no matter how many wrappers are stacked.
     let current = reg.original;
     for (const entry of reg.entries) {
-      current = entry.wrapper(current);
+      current = entry.wrapper(current).bind(this);
     }
     (this as any)[method] = current;
   }
