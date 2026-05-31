@@ -101,6 +101,30 @@
 					</div>
 				</button>
 			</section>
+			<!-- 5b. Date unique + plusieurs créneaux (multiSlot) -->
+			<section class="space-y-2">
+				<h2 class="text-sm font-semibold text-slate-500 uppercase tracking-wide">5b. Date unique + plusieurs créneaux (multiSlot)</h2>
+				<button id="datepicker-single-multislot" type="button"
+					class="flex items-center gap-3 min-w-[200px] max-w-[340px] bg-white border border-slate-200 rounded-lg px-3 pt-2 pb-1.5 text-left cursor-pointer hover:border-slate-400 transition-colors shadow-sm">
+					<svg class="w-5 h-5 text-slate-600 shrink-0" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M9 1V3H15V1H17V3H21C21.5523 3 22 3.44772 22 4V20C22 20.5523 21.5523 21 21 21H3C2.44772 21 2 20.5523 2 20V4C2 3.44772 2.44772 3 3 3H7V1H9ZM20 11H4V19H20V11ZM11 13V17H6V13H11ZM7 5H4V9H20V5H17V7H15V5H9V7H7V5Z"></path></svg>
+					<div>
+						<span class="block text-xs font-medium text-slate-500 leading-tight">Date + créneaux multiples</span>
+						<span class="dates block text-sm text-slate-900 truncate max-w-[200px]">Choisir...</span>
+					</div>
+				</button>
+			</section>
+			<!-- 5c. Dates multiples + plusieurs créneaux par date (multiSlot) -->
+			<section class="space-y-2">
+				<h2 class="text-sm font-semibold text-slate-500 uppercase tracking-wide">5c. Dates multiples + plusieurs créneaux par date (multiSlot)</h2>
+				<button id="datepicker-multiple-multislot" type="button"
+					class="flex items-center gap-3 min-w-[200px] max-w-[340px] bg-white border border-slate-200 rounded-lg px-3 pt-2 pb-1.5 text-left cursor-pointer hover:border-slate-400 transition-colors shadow-sm">
+					<svg class="w-5 h-5 text-slate-600 shrink-0" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M9 1V3H15V1H17V3H21C21.5523 3 22 3.44772 22 4V20C22 20.5523 21.5523 21 21 21H3C2.44772 21 2 20.5523 2 20V4C2 3.44772 2.44772 3 3 3H7V1H9ZM20 11H4V19H20V11ZM11 13V17H6V13H11ZM7 5H4V9H20V5H17V7H15V5H9V7H7V5Z"></path></svg>
+					<div>
+						<span class="block text-xs font-medium text-slate-500 leading-tight">Dates + créneaux multiples</span>
+						<span class="dates block text-sm text-slate-900 truncate max-w-[200px]">Choisir...</span>
+					</div>
+				</button>
+			</section>
 			<!-- 6. Presets + dropdown -->
 			<section class="space-y-2">
 				<h2 class="text-sm font-semibold text-slate-500 uppercase tracking-wide">6. Plage avec presets + dropdown</h2>
@@ -309,6 +333,36 @@
 						pickerType: 'spinner',
 						arrivalDeparture: true,
 						minuteStep: 15,
+					}),
+				],
+			});
+
+			// 5b. Date unique + plusieurs créneaux (multiSlot)
+			new ModoCalendar({
+				trigger: '#datepicker-single-multislot',
+				mode: 'single',
+				plugins: [
+					timePlugin({
+						from: '08:00',
+						to: '18:00',
+						interval: 60,
+						multiSlot: true,
+					}),
+				],
+			});
+
+			// 5c. Dates multiples + plusieurs créneaux par date (multiSlot)
+			new ModoCalendar({
+				trigger: '#datepicker-multiple-multislot',
+				mode: 'multiple',
+				maxMultipleDates: 5,
+				plugins: [
+					monthsPlugin({ months: 2 }),
+					timePlugin({
+						from: '09:00',
+						to: '17:00',
+						interval: 60,
+						multiSlot: true,
 					}),
 				],
 			});

@@ -249,6 +249,7 @@ export interface CalendarInstance {
   _timePluginState?: {
     selectedTimes: Record<number, string>;
     selectedTimePairs: Record<number, { arrival: string | null; departure: string | null }>;
+    selectedSlots?: Record<number, string[]>;
     _lastDateClicked: Date | null;
   };
   _forceTimePluginRender?: boolean;

@@ -5,6 +5,14 @@ All notable changes to ModoCalendar will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.0] - 2026-05-31
+
+### Added
+
+- `timePlugin` option **`multiSlot`** — select **multiple time slots per date** (block picker), in `single` and `multiple` modes. Each block toggles independently (`role="checkbox"` + `aria-checked`); selected slots are stored per date in `_timePluginState.selectedSlots` (`Record<dateKey, string[]>`, sorted by start time).
+  - Hidden-input shapes: single → `{ mode: 'single', dates: [key], slots: [...] }`; multiple → `{ mode: 'multiple', dates: [...keys], slots: { [key]: [...] } }`.
+  - Mutually exclusive with `arrivalDeparture` (warns and disables it); ignored by the spinner picker and in range mode.
+
 ## [0.1.0] - 2026-05-07
 
 Initial public release.
@@ -32,4 +40,5 @@ Initial public release.
 - Event API: `dateSelected`, `rangeSelected`, `timeSelected`, `monthChanged`, `calendarOpen`/`Close`, `localeChanged`, etc.
 - Zero runtime dependencies (~25 kB gzipped, ESM)
 
+[0.4.0]: https://github.com/fredasterisk/modo-calendar/releases/tag/v0.4.0
 [0.1.0]: https://github.com/fredasterisk/modo-calendar/releases/tag/v0.1.0

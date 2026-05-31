@@ -81,9 +81,10 @@ export class ModoCalendar extends EventEmitter implements CalendarInstance {
 
   _initialLabelValue: string | null = null;
   _isOpen = false;
-  _timePluginState: { selectedTimes: Record<number, string>; selectedTimePairs: Record<number, { arrival: string | null; departure: string | null }>; _lastDateClicked: Date | null } = {
+  _timePluginState: { selectedTimes: Record<number, string>; selectedTimePairs: Record<number, { arrival: string | null; departure: string | null }>; selectedSlots?: Record<number, string[]>; _lastDateClicked: Date | null } = {
     selectedTimes: {},
     selectedTimePairs: {},
+    selectedSlots: {},
     _lastDateClicked: null,
   };
   _forceTimePluginRender = false;
@@ -692,7 +693,7 @@ export class ModoCalendar extends EventEmitter implements CalendarInstance {
       if (!dayEl || dayEl.classList.contains('mc-day--disabled') || !dayEl._date) return;
       e.stopPropagation();
 
-      this._timePluginState = this._timePluginState || { selectedTimes: {}, _lastDateClicked: null };
+      this._timePluginState = this._timePluginState || { selectedTimes: {}, selectedTimePairs: {}, selectedSlots: {}, _lastDateClicked: null };
       this._timePluginState._lastDateClicked = dayEl._date;
       this.selectDate(dayEl._date, Number(dayEl.dataset.monthIndex || 0));
 
@@ -836,6 +837,7 @@ export class ModoCalendar extends EventEmitter implements CalendarInstance {
         if (this._timePluginState) {
           const utcKey = new Date(Date.UTC(selected.getFullYear(), selected.getMonth(), selected.getDate())).getTime();
           delete this._timePluginState.selectedTimes[utcKey];
+          this._timePluginState.selectedSlots?.[utcKey] && delete this._timePluginState.selectedSlots[utcKey];
           this._timePluginState._lastDateClicked = null;
         }
         this.updateButtonLabel();

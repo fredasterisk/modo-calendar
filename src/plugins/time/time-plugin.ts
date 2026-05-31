@@ -96,6 +96,13 @@ export interface TimePluginOptions {
   disabledTimes?: string[];
   isTimeBlocked?: (time: string, dates: Date[]) => boolean;
   arrivalDeparture?: boolean;
+  /**
+   * Allow selecting MULTIPLE time slots per date (block picker only).
+   * Applies to `single` and `multiple` modes. Each date keeps an array of slots.
+   * Mutually exclusive with `arrivalDeparture` (which wins is `multiSlot`; arrivalDeparture is disabled with a warning).
+   * Ignored for the spinner picker and in range mode.
+   */
+  multiSlot?: boolean;
   /** Hide the calendar grid and header to render only the time picker for a fixed date. Requires `date`. */
   hideCalendar?: boolean;
   /** Fixed date for time-only flows. Accepts a Date instance or a "YYYY-MM-DD" string. Required when `hideCalendar` is true. */
@@ -131,6 +138,13 @@ export function timePlugin(options: TimePluginOptions = {}): CalendarPlugin {
   if (options.minuteStep !== undefined && (options.minuteStep <= 0 || options.minuteStep > 60)) {
     console.warn(`[ModoCalendar:timePlugin] Invalid 'minuteStep' value ${options.minuteStep}. Must be between 1 and 60.`);
   }
+  if (options.multiSlot && options.arrivalDeparture) {
+    console.warn(`[ModoCalendar:timePlugin] 'multiSlot' and 'arrivalDeparture' are mutually exclusive. Disabling 'arrivalDeparture'.`);
+    options.arrivalDeparture = false;
+  }
+  if (options.multiSlot && pickerType === 'spinner') {
+    console.warn(`[ModoCalendar:timePlugin] 'multiSlot' requires the 'blocks' picker; the spinner ignores it.`);
+  }
 
   return {
     name: 'timePlugin',
@@ -144,6 +158,7 @@ export function timePlugin(options: TimePluginOptions = {}): CalendarPlugin {
       calendar._timePluginState = {
         selectedTimes: {},
         selectedTimePairs: {},
+        selectedSlots: {},
         _lastDateClicked: null,
       };
       calendar.selectedTimes = {};
@@ -176,6 +191,20 @@ export function timePlugin(options: TimePluginOptions = {}): CalendarPlugin {
         return function () {
           const { selectedDates, selectedTimes, mode } = calendar;
           const times = calendar._timePluginState?.selectedTimes || {};
+
+          if (mode === 'single' && options.multiSlot) {
+            const sd = calendar.selectedDate || selectedDates[0];
+            if (sd) {
+              const key = getDateKey(sd);
+              const slots = calendar._timePluginState?.selectedSlots?.[key] || [];
+              if (calendar.hiddenInput) {
+                calendar.hiddenInput.value = JSON.stringify(
+                  slots.length ? { mode: 'single', dates: [key], slots } : { mode: 'single', dates: [key] },
+                );
+              }
+              return;
+            }
+          }
 
           if (mode === 'single' && selectedDates.length === 1) {
             const key = getDateKey(selectedDates[0]);
@@ -210,6 +239,17 @@ export function timePlugin(options: TimePluginOptions = {}): CalendarPlugin {
 
           if (mode === 'multiple' && selectedDates.length > 0) {
             const dateKeys = selectedDates.map((d) => getDateKey(d));
+            if (options.multiSlot) {
+              const slotsState = calendar._timePluginState?.selectedSlots || {};
+              const slots: Record<number, string[]> = {};
+              dateKeys.forEach((k) => {
+                slots[k] = slotsState[k] || [];
+              });
+              if (calendar.hiddenInput) {
+                calendar.hiddenInput.value = JSON.stringify({ mode: 'multiple', dates: dateKeys, slots });
+              }
+              return;
+            }
             if (options.arrivalDeparture) {
               const pairs = calendar._timePluginState?.selectedTimePairs || {};
               const timePairs: Record<number, { arrival: string | null; departure: string | null }> = {};
@@ -258,6 +298,24 @@ export function timePlugin(options: TimePluginOptions = {}): CalendarPlugin {
 
           // Multiple mode: show all dates with their times
           if (calendar.mode === 'multiple' && calendar.selectedDates.length > 0) {
+            if (options.multiSlot) {
+              const slotsState = calendar._timePluginState?.selectedSlots || {};
+              const anySlot = calendar.selectedDates.some((d) => (slotsState[getDateKey(d)] || []).length);
+              if (anySlot) {
+                const parts = [...calendar.selectedDates]
+                  .sort((a, b) => a.getTime() - b.getTime())
+                  .map((d) => {
+                    const k = getDateKey(d);
+                    const arr = slotsState[k] || [];
+                    const dl = formatDateDisplay(d, calendar.locale);
+                    return arr.length ? `${dl} · ${arr.join(', ')}` : dl;
+                  });
+                labelDiv.textContent = parts.join(' | ');
+                return;
+              }
+              original();
+              return;
+            }
             if (options.arrivalDeparture) {
               const pairs = calendar._timePluginState?.selectedTimePairs || {};
               const anyPair = calendar.selectedDates.some((d) => {
@@ -302,6 +360,17 @@ export function timePlugin(options: TimePluginOptions = {}): CalendarPlugin {
 
           const key = getDateKey(activeDate);
           const block = times[key];
+
+          if (options.multiSlot) {
+            const slots = calendar._timePluginState?.selectedSlots?.[key] || [];
+            if (slots.length) {
+              const dateLabel = formatDateDisplay(activeDate, calendar.locale);
+              labelDiv.textContent = `${dateLabel} · ${slots.join(', ')}`;
+              return;
+            }
+            original();
+            return;
+          }
 
           if (block) {
             if (calendar.mode === 'range' && calendar.startDate && calendar.endDate) {
@@ -420,7 +489,9 @@ function _renderBlocks(
   const [toH, toM] = to.split(':').map(Number);
   let cur = new Date(0, 0, 0, fromH, fromM);
   const end = new Date(0, 0, 0, toH, toM);
+  const multiSlot = !!opts.multiSlot;
   const selectedBlock = times[key] || null;
+  const selectedSlots = (multiSlot && calendar._timePluginState?.selectedSlots?.[key]) || [];
 
   const buttons: HTMLElement[] = [];
 
@@ -438,16 +509,29 @@ function _renderBlocks(
       ? opts.isTimeBlocked(label, [activeDate])
       : disabledTimes.includes(label) || isTimeBlockedByRules(calendar, activeDate, label, curH, curM);
 
+    const isSelected = multiSlot ? selectedSlots.includes(blockKey) : selectedBlock === blockKey;
+
     const btn = document.createElement('button');
     btn.type = 'button';
     btn.className = 'mc-time-block mc-btn';
     if (isBlocked) btn.classList.add('mc-time-block--blocked');
-    if (selectedBlock === blockKey) btn.classList.add('mc-time-block--selected');
+    if (isSelected) btn.classList.add('mc-time-block--selected');
     btn.textContent = blockKey;
     btn.disabled = !!isBlocked;
     btn.setAttribute('aria-label', blockKey);
+    if (multiSlot) {
+      btn.setAttribute('role', 'checkbox');
+      btn.setAttribute('aria-checked', isSelected ? 'true' : 'false');
+    }
 
     btn.addEventListener('click', () => {
+      if (multiSlot) {
+        const nowSelected = _toggleSlot(calendar, key, blockKey, activeDate);
+        btn.classList.toggle('mc-time-block--selected', nowSelected);
+        btn.setAttribute('aria-checked', nowSelected ? 'true' : 'false');
+        animateSelect(btn);
+        return;
+      }
       _selectTime(calendar, key, blockKey, activeDate);
       animateSelect(btn);
       // Update selected state in UI
@@ -935,6 +1019,48 @@ function _selectTimePair(
 
 // --- Shared helpers ---
 
+/**
+ * Toggle a time slot in/out of the per-date slot array (multiSlot mode).
+ * Returns true if the slot is now selected, false if it was removed.
+ */
+function _toggleSlot(
+  calendar: CalendarInstance,
+  key: number,
+  blockKey: string,
+  date: Date,
+): boolean {
+  const state = calendar._timePluginState;
+  if (!state) return false;
+  if (!state.selectedSlots) state.selectedSlots = {};
+
+  const arr = state.selectedSlots[key] ? [...state.selectedSlots[key]] : [];
+  const idx = arr.indexOf(blockKey);
+  let nowSelected: boolean;
+  if (idx === -1) {
+    arr.push(blockKey);
+    nowSelected = true;
+  } else {
+    arr.splice(idx, 1);
+    nowSelected = false;
+  }
+  // Keep slots ordered by start time for stable serialization + labels.
+  arr.sort((a, b) => {
+    const am = _parseTimeToMinutes(a.split(' - ')[0]) ?? 0;
+    const bm = _parseTimeToMinutes(b.split(' - ')[0]) ?? 0;
+    return am - bm;
+  });
+
+  if (arr.length) state.selectedSlots[key] = arr;
+  else delete state.selectedSlots[key];
+  state._lastDateClicked = date;
+
+  calendar.updateButtonLabel();
+  calendar.updateHiddenInput();
+  _refreshMultiChips(calendar);
+  calendar.emit('timeSelected', { date: new Date(key), time: blockKey });
+  return nowSelected;
+}
+
 function _selectTime(
   calendar: CalendarInstance,
   key: number,
@@ -960,7 +1086,9 @@ function _refreshMultiChips(calendar: CalendarInstance): void {
   const state = calendar._timePluginState;
   if (!state || !calendar.container) return;
 
-  const useArrivalDeparture = (calendar.plugins?.find((p) => p.name === 'timePlugin')?.options as TimePluginOptions)?.arrivalDeparture;
+  const timeOpts = calendar.plugins?.find((p) => p.name === 'timePlugin')?.options as TimePluginOptions | undefined;
+  const useArrivalDeparture = timeOpts?.arrivalDeparture;
+  const useMultiSlot = timeOpts?.multiSlot;
 
   const chips = calendar.container.querySelectorAll<HTMLElement>('.mc-remove-date');
   chips.forEach((chip) => {
@@ -976,7 +1104,10 @@ function _refreshMultiChips(calendar: CalendarInstance): void {
     if (!dateObj) return;
     let label = formatDateDisplay(dateObj, calendar.locale);
 
-    if (useArrivalDeparture) {
+    if (useMultiSlot) {
+      const slots = state.selectedSlots?.[keyNum] || [];
+      if (slots.length) label += ` · ${slots.join(', ')}`;
+    } else if (useArrivalDeparture) {
       const pair = state.selectedTimePairs[keyNum];
       if (pair && (pair.arrival || pair.departure)) {
         const arr = pair.arrival || '–';
