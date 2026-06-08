@@ -5,6 +5,7 @@
 
 /* Calendar Container */
 .mc-calendar {
+  box-sizing: border-box;
   font-family: var(--mc-font);
   font-size: var(--mc-font-size);
   font-variant-numeric: tabular-nums;
@@ -21,6 +22,7 @@
   -moz-osx-font-smoothing: grayscale;
   transform-origin: top center;
   line-height: 1;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .mc-calendar.mc-bottom-sheet {
@@ -29,9 +31,25 @@
   bottom: 0;
   width: 100%;
   max-width: 100%;
-  border-radius: var(--mc-radius) var(--mc-radius) 0 0;
+  max-height: 90vh;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  border-radius: calc(var(--mc-radius) * 1.5) calc(var(--mc-radius) * 1.5) 0 0;
   box-shadow: 0 -8px 30px rgba(0, 0, 0, 0.12);
+  padding-top: calc(var(--mc-padding) + 0.25rem);
   padding-bottom: calc(var(--mc-padding) + env(safe-area-inset-bottom, 0px));
+}
+
+/* Grab-handle affordance at the top of the sheet — reinforces the "modal from bottom" feel */
+.mc-calendar.mc-bottom-sheet::before {
+  content: "";
+  display: block;
+  width: 2.25rem;
+  height: 0.25rem;
+  margin: 0 auto 0.5rem;
+  border-radius: 9999px;
+  background: var(--mc-border);
 }
 
 /* Header */
@@ -131,8 +149,11 @@
   border-radius: var(--mc-cell-radius);
   transition:
     background var(--mc-transition),
-    color var(--mc-transition);
+    color var(--mc-transition),
+    transform 80ms ease;
   user-select: none;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .mc-day-empty {
@@ -178,13 +199,28 @@
   pointer-events: none;
 }
 
-.mc-day:not(.mc-day--in-range):not(.mc-day--selected):not(.mc-day--disabled):not(.mc-day--range-start):not(.mc-day--range-end):hover {
-  background: var(--mc-muted);
-  color: var(--mc-fg);
+/* Hover tint only on real pointing devices — prevents the sticky "ghost hover"
+   that touch devices leave behind after a tap (made the tap feel unresponsive). */
+@media (hover: hover) {
+  .mc-day:not(.mc-day--in-range):not(.mc-day--selected):not(.mc-day--disabled):not(.mc-day--range-start):not(.mc-day--range-end):hover {
+    background: var(--mc-muted);
+    color: var(--mc-fg);
+  }
 }
 
+/* Immediate press feedback — driven by a JS-toggled class on pointerdown, because
+   CSS :active/:hover are unreliable on touch (iOS needs a touch listener for :active
+   to fire at all, and synthetic hover lingers after a tap). The accent tint reads as
+   an intentional press, distinct from the grey hover state. */
+.mc-day--pressed:not(.mc-day--disabled) {
+  background: var(--mc-accent);
+  color: var(--mc-accent-fg);
+  transform: scale(0.88);
+}
+
+/* CSS :active kept as a progressive-enhancement fallback for pointer devices. */
 .mc-day:active:not(.mc-day--disabled) {
-  transform: scale(0.95);
+  transform: scale(0.9);
 }
 
 /* Selected */
@@ -195,8 +231,10 @@
   z-index: 2;
 }
 
-.mc-day--selected:hover {
-  background: var(--mc-accent-hover);
+@media (hover: hover) {
+  .mc-day--selected:hover {
+    background: var(--mc-accent-hover);
+  }
 }
 
 /* Range */
@@ -206,8 +244,10 @@
   border-radius: 0;
 }
 
-.mc-day--in-range:hover {
-  background: rgba(37, 99, 235, 0.14);
+@media (hover: hover) {
+  .mc-day--in-range:hover {
+    background: rgba(37, 99, 235, 0.14);
+  }
 }
 
 .mc-day--range-start {
@@ -359,8 +399,28 @@
     gap: 0.75rem;
   }
 
-  .mc-calendar {
+  .mc-calendar:not(.mc-bottom-sheet) {
     max-width: calc(100vw - 2rem);
+  }
+
+  /* Bottom-sheet: stretch the 7-column grid edge-to-edge so there's no dead
+     white space on the right, and grow the cells into comfortable touch targets. */
+  .mc-bottom-sheet .mc-days {
+    grid-template-columns: repeat(7, 1fr);
+    width: 100%;
+  }
+
+  .mc-bottom-sheet .mc-month-col {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .mc-bottom-sheet .mc-day,
+  .mc-bottom-sheet .mc-day-empty,
+  .mc-bottom-sheet .mc-day-outside {
+    width: 100%;
+    height: 2.75rem;
+    font-size: 0.9375rem;
   }
 }
 

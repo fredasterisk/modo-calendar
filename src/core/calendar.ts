@@ -92,6 +92,7 @@ export class ModoCalendar extends EventEmitter implements CalendarInstance {
   _hoverRaf = 0;
   _cleanupGestures: (() => void) | null = null;
   _repositionHandler: (() => void) | null = null;
+  _backdrop: HTMLElement | null = null;
   _useShadow: boolean;
   _batchStart?: () => void;
   _batchEnd?: () => void;
@@ -359,12 +360,16 @@ export class ModoCalendar extends EventEmitter implements CalendarInstance {
       host.style.right = '0';
       host.style.bottom = '0';
       host.style.top = 'auto';
+      host.style.zIndex = '9999';
       this.container.classList.add('mc-bottom-sheet');
       if (this.classNames.bottomSheet) this.container.classList.add(...this.classNames.bottomSheet.split(' '));
+      this._showBackdrop();
     } else {
       host.style.position = 'absolute';
       host.style.right = '';
       host.style.bottom = '';
+      host.style.zIndex = '';
+      this._removeBackdrop();
       this.container.classList.remove('mc-bottom-sheet');
 
       // Make container measurable, then place it. animateOpen will keep display:block.
@@ -398,6 +403,7 @@ export class ModoCalendar extends EventEmitter implements CalendarInstance {
     if (!this._isOpen) return;
     this._isOpen = false;
     cancelAnimationFrame(this._hoverRaf);
+    this._removeBackdrop();
 
     if (this._repositionHandler) {
       window.removeEventListener('resize', this._repositionHandler);
@@ -408,6 +414,36 @@ export class ModoCalendar extends EventEmitter implements CalendarInstance {
     animateClose(this.container);
     this.plugins?.forEach((p) => p.onCalendarClose?.(this));
     this.emit('calendarClose', undefined as never);
+  }
+
+  /** Dim the page behind the mobile bottom sheet to give it a modal feel. */
+  private _showBackdrop(): void {
+    if (this._backdrop) return;
+    const bd = document.createElement('div');
+    bd.className = 'mc-backdrop';
+    bd.style.cssText =
+      'position:fixed;inset:0;z-index:9998;background:rgba(15,23,42,0.4);opacity:0;';
+    bd.addEventListener('click', () => this.hideCalendar());
+    document.body.appendChild(bd);
+    this._backdrop = bd;
+    if (shouldAnimate()) {
+      bd.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 200, easing: 'ease-out', fill: 'forwards' });
+    } else {
+      bd.style.opacity = '1';
+    }
+  }
+
+  private _removeBackdrop(): void {
+    const bd = this._backdrop;
+    if (!bd) return;
+    this._backdrop = null;
+    if (shouldAnimate()) {
+      const anim = bd.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 160, easing: 'ease-in', fill: 'forwards' });
+      anim.onfinish = () => bd.remove();
+      setTimeout(() => bd.remove(), 600);
+    } else {
+      bd.remove();
+    }
   }
 
   private _injectCustomCSS(): void {
@@ -478,6 +514,8 @@ export class ModoCalendar extends EventEmitter implements CalendarInstance {
     }
     this.plugins.forEach((p) => p.onDestroy?.(this));
     this.removeAllListeners();
+    this._backdrop?.remove();
+    this._backdrop = null;
     this.shadowHost?.remove();
     this.hiddenInput?.remove();
     const idx = ModoCalendar.instances.indexOf(this);
@@ -700,6 +738,24 @@ export class ModoCalendar extends EventEmitter implements CalendarInstance {
       // Animate selection
       animateSelect(dayEl);
     });
+
+    // Instant press feedback — a JS-toggled class fires the moment a finger lands,
+    // independent of the CSS :active/:hover quirks that make taps feel unresponsive.
+    let pressedEl: HTMLElement | null = null;
+    const clearPressed = () => {
+      pressedEl?.classList.remove('mc-day--pressed');
+      pressedEl = null;
+    };
+    daysContainer.addEventListener('pointerdown', (e) => {
+      const dayEl = (e.target as HTMLElement).closest('.mc-day') as HTMLElement | null;
+      if (!dayEl || dayEl.classList.contains('mc-day--disabled')) return;
+      clearPressed();
+      pressedEl = dayEl;
+      dayEl.classList.add('mc-day--pressed');
+    }, { passive: true });
+    daysContainer.addEventListener('pointerup', clearPressed, { passive: true });
+    daysContainer.addEventListener('pointercancel', clearPressed, { passive: true });
+    daysContainer.addEventListener('pointerleave', clearPressed, { passive: true });
 
     // Hover delegation with rAF throttling
     daysContainer.addEventListener('mouseover', (e) => {
@@ -1118,6 +1174,17 @@ export class ModoCalendar extends EventEmitter implements CalendarInstance {
           el.classList.add('mc-day--in-range');
           if (this.classNames.dayInRange) el.classList.add(...this.classNames.dayInRange.split(' '));
         }
+      }
+
+      // Lone start date — no end picked yet AND no active hover (the usual state right
+      // after the first tap on touch, where there's no pointer hover to drive the preview
+      // band above). Mouse users get this via the hover hints below; touch users would
+      // otherwise see the pick vanish the instant they lift their finger. Keep it visibly
+      // selected so the first pick persists.
+      if (this.mode === 'range' && fromDate && !this.endDate && !toDate && isSameDay(date, fromDate)) {
+        el.classList.add('mc-day--selected', 'mc-day--range-start', 'mc-day--range-end');
+        if (this.classNames.daySelected) el.classList.add(...this.classNames.daySelected.split(' '));
+        el.setAttribute('aria-selected', 'true');
       }
 
       // rangeSize hover preview — pale continuous band on the N-day group the next click
