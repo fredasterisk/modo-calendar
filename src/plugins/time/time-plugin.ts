@@ -283,6 +283,22 @@ export function timePlugin(options: TimePluginOptions = {}): CalendarPlugin {
         };
       });
 
+      // Hook: updateDayClasses — mark the date whose slots the panel is currently editing.
+      // In multiSlot mode a click on a selected-but-inactive date focuses it instead of
+      // removing it, so the user needs to see which one the slot grid belongs to.
+      if (options.multiSlot && calendar.mode === 'multiple') {
+        calendar._addHook('updateDayClasses', (original) => {
+          return function () {
+            original();
+            const active = calendar._timePluginState?._lastDateClicked;
+            const activeKey = active ? getDateKey(active) : null;
+            calendar.dayElements?.forEach(({ el, date }) => {
+              el.classList.toggle('mc-day--time-active', getDateKey(date) === activeKey);
+            });
+          };
+        });
+      }
+
       // Hook: updateButtonLabel — append time info
       const unhookButtonLabel = calendar._addHook('updateButtonLabel', (original) => {
         return function () {
@@ -454,6 +470,15 @@ export function timePlugin(options: TimePluginOptions = {}): CalendarPlugin {
       if (calendar.mode === 'multiple' && options.arrivalDeparture) {
         _renderMultiDateArrivalDeparture(calendar, panel, activeDate, signal);
         return;
+      }
+
+      // multiSlot in multiple mode: name the date the slots belong to — several dates are
+      // selected at once and the panel only ever edits one of them.
+      if (options.multiSlot && calendar.mode === 'multiple') {
+        const heading = document.createElement('div');
+        heading.className = 'mc-time-label';
+        heading.textContent = `${calendar.locale.strings.time} — ${formatDateDisplay(activeDate, calendar.locale)}`;
+        panel.appendChild(heading);
       }
 
       // Single or multiple: one time picker
@@ -1086,41 +1111,18 @@ function _refreshMultiChips(calendar: CalendarInstance): void {
   const state = calendar._timePluginState;
   if (!state || !calendar.container) return;
 
-  const timeOpts = calendar.plugins?.find((p) => p.name === 'timePlugin')?.options as TimePluginOptions | undefined;
-  const useArrivalDeparture = timeOpts?.arrivalDeparture;
-  const useMultiSlot = timeOpts?.multiSlot;
+  const activeKey = state._lastDateClicked ? getDateKey(state._lastDateClicked) : null;
 
   const chips = calendar.container.querySelectorAll<HTMLElement>('.mc-remove-date');
   chips.forEach((chip) => {
     const k = chip.dataset.key;
     if (!k) return;
     const keyNum = Number(k);
-    // Rebuild label: find matching date to format it
-    const dateObj = calendar.selectedDates.find((d) => {
-      const dt = new Date(d);
-      dt.setUTCHours(0, 0, 0, 0);
-      return dt.getTime() === keyNum;
-    });
+    const dateObj = calendar.selectedDates.find((d) => getDateKey(d) === keyNum);
     if (!dateObj) return;
-    let label = formatDateDisplay(dateObj, calendar.locale);
 
-    if (useMultiSlot) {
-      const slots = state.selectedSlots?.[keyNum] || [];
-      if (slots.length) label += ` · ${slots.join(', ')}`;
-    } else if (useArrivalDeparture) {
-      const pair = state.selectedTimePairs[keyNum];
-      if (pair && (pair.arrival || pair.departure)) {
-        const arr = pair.arrival || '–';
-        const dep = pair.departure || '–';
-        label += ` (${arr} → ${dep})`;
-      }
-    } else {
-      const time = state.selectedTimes[keyNum];
-      if (time) label += ` · ${time}`;
-    }
-
-    chip.textContent = label;
-    chip.setAttribute('aria-label', `Remove ${label}`);
+    calendar._setChipLabel(chip, calendar._multiChipLabel(dateObj));
+    chip.classList.toggle('mc-remove-date--active', keyNum === activeKey);
   });
 }
 

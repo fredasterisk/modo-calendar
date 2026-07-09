@@ -732,7 +732,6 @@ export class ModoCalendar extends EventEmitter implements CalendarInstance {
       e.stopPropagation();
 
       this._timePluginState = this._timePluginState || { selectedTimes: {}, selectedTimePairs: {}, selectedSlots: {}, _lastDateClicked: null };
-      this._timePluginState._lastDateClicked = dayEl._date;
       this.selectDate(dayEl._date, Number(dayEl.dataset.monthIndex || 0));
 
       // Animate selection
@@ -789,6 +788,83 @@ export class ModoCalendar extends EventEmitter implements CalendarInstance {
     return daysContainer;
   }
 
+  /** UTC-midnight epoch key — the shape used by the time plugin's per-date maps. */
+  _dateKey(date: Date): number {
+    const dt = new Date(date);
+    dt.setUTCHours(0, 0, 0, 0);
+    return dt.getTime();
+  }
+
+  /** Chip label for a date in the multi-date list: date + its time slot(s), if any. */
+  _multiChipLabel(date: Date): string {
+    const label = formatDateDisplay(date, this.locale);
+    const state = this._timePluginState;
+    if (!state) return label;
+
+    const key = this._dateKey(date);
+
+    const slots = state.selectedSlots?.[key];
+    if (slots?.length) return `${label} · ${slots.join(', ')}`;
+
+    const pair = state.selectedTimePairs?.[key];
+    if (pair && (pair.arrival || pair.departure)) {
+      return `${label} (${pair.arrival || '–'} → ${pair.departure || '–'})`;
+    }
+
+    const time = state.selectedTimes[key];
+    return time ? `${label} · ${time}` : label;
+  }
+
+  /**
+   * Write a chip's label into its text span, creating the span + the hover "×" affordance
+   * on first call. The "×" lives in its own span so relabelling never wipes it.
+   */
+  _setChipLabel(chip: HTMLElement, label: string): void {
+    let text = chip.querySelector('.mc-remove-date-text');
+    if (!text) {
+      chip.textContent = '';
+      text = document.createElement('span');
+      text.className = 'mc-remove-date-text';
+      chip.appendChild(text);
+      const cross = document.createElement('span');
+      cross.className = 'mc-remove-date-x';
+      cross.setAttribute('aria-hidden', 'true');
+      // An SVG, not a "×" glyph: the cross is centred by its viewBox geometry, so it needs
+      // no per-font optical nudge and stays centred whatever --mc-font resolves to.
+      cross.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>';
+      chip.appendChild(cross);
+    }
+    text.textContent = label;
+    chip.setAttribute('aria-label', `${this.locale.strings.remove} ${label}`);
+    chip.title = `${this.locale.strings.remove} ${label}`;
+  }
+
+  /** Drop a date from the multiple-mode selection, discarding its time state. */
+  _removeSelectedDate(date: Date): void {
+    const idx = this.selectedDates.findIndex((d) => d.getTime() === date.getTime());
+    if (idx > -1) this.selectedDates.splice(idx, 1);
+
+    const state = this._timePluginState;
+    if (state) {
+      const key = this._dateKey(date);
+      delete state.selectedTimes[key];
+      delete state.selectedTimePairs[key];
+      if (state.selectedSlots) delete state.selectedSlots[key];
+      if (state._lastDateClicked && isSameDay(state._lastDateClicked, date)) {
+        state._lastDateClicked = this.selectedDates.length
+          ? [...this.selectedDates].sort((a, b) => a.getTime() - b.getTime())[this.selectedDates.length - 1]
+          : null;
+      }
+    }
+
+    this._forceTimePluginRender = true;
+    this.updateButtonLabel();
+    this.renderCalendar();
+    this.updateDayClasses();
+    this.updateHiddenInput();
+    this.emit('dateDeselected', { date, mode: this.mode });
+  }
+
   private _renderMultiList(): void {
     if (!this.container) return;
 
@@ -825,38 +901,16 @@ export class ModoCalendar extends EventEmitter implements CalendarInstance {
     }
 
     if (filteredDates.length > 0) {
+      const activeDate = this._timePluginState?._lastDateClicked || null;
       const sorted = filteredDates.sort((a, b) => a.getTime() - b.getTime());
       sorted.forEach((date) => {
         const btn = document.createElement('button');
         btn.type = 'button';
         btn.className = this._cls('mc-btn mc-remove-date', 'removeButton');
-        const dtKey = new Date(date);
-        dtKey.setUTCHours(0, 0, 0, 0);
-        btn.dataset.key = String(dtKey.getTime());
-        let label = formatDateDisplay(date, this.locale);
-        // Append selected time if available from time plugin state
-        if (this._timePluginState) {
-          const pair = this._timePluginState.selectedTimePairs?.[dtKey.getTime()];
-          if (pair && (pair.arrival || pair.departure)) {
-            const arr = pair.arrival || '–';
-            const dep = pair.departure || '–';
-            label += ` (${arr} → ${dep})`;
-          } else {
-            const time = this._timePluginState.selectedTimes[dtKey.getTime()];
-            if (time) label += ` · ${time}`;
-          }
-        }
-        btn.textContent = label;
-        btn.setAttribute('aria-label', `Remove ${label}`);
-        btn.onclick = () => {
-          const idx = this.selectedDates.findIndex((d) => d.getTime() === date.getTime());
-          if (idx > -1) this.selectedDates.splice(idx, 1);
-          this.updateButtonLabel();
-          this.renderCalendar();
-          this.updateDayClasses();
-          this.updateHiddenInput();
-          this.emit('dateDeselected', { date, mode: this.mode });
-        };
+        btn.dataset.key = String(this._dateKey(date));
+        if (activeDate && isSameDay(activeDate, date)) btn.classList.add('mc-remove-date--active');
+        this._setChipLabel(btn, this._multiChipLabel(date));
+        btn.onclick = () => this._removeSelectedDate(date);
         multiList!.appendChild(btn);
       });
 
@@ -883,6 +937,11 @@ export class ModoCalendar extends EventEmitter implements CalendarInstance {
 
   private _selectDateInner(selected: Date, monthIndex: number): void {
     const selectedTime = selected.getTime();
+    // Captured before any mutation: multiSlot needs to know which date the time panel was showing.
+    const previousActive = this._timePluginState?._lastDateClicked || null;
+    if (this._timePluginState && this.mode !== 'multiple') {
+      this._timePluginState._lastDateClicked = selected;
+    }
 
     if (this.mode === 'single') {
       // Toggle: clicking the already-selected date deselects.
@@ -918,15 +977,28 @@ export class ModoCalendar extends EventEmitter implements CalendarInstance {
       const hasTimePlugin = this.plugins?.some((p) => p.name === 'timePlugin');
 
       if (hasTimePlugin) {
-        // Still toggle the date in selectedDates
+        const timeOptions = this.plugins.find((p) => p.name === 'timePlugin')?.options as { multiSlot?: boolean } | undefined;
+        const multiSlot = !!timeOptions?.multiSlot;
         const idx = this.selectedDates.findIndex((d) => d.getTime() === selectedTime);
+        const isActive = !!previousActive && isSameDay(previousActive, selected);
+
         if (idx === -1) {
           if (!this._validateMultipleSelection()) return;
           this.selectedDates.push(selected);
+          if (this._timePluginState) this._timePluginState._lastDateClicked = selected;
           this.emit('dateSelected', { date: selected, mode: this.mode });
+        } else if (multiSlot && !isActive) {
+          // The date is selected but its slots aren't the ones on screen: focus it for editing
+          // rather than removing it. A second click (now that it IS active) deselects.
+          if (this._timePluginState) this._timePluginState._lastDateClicked = selected;
+          this._forceTimePluginRender = true;
+          this.renderCalendar();
+          this.updateDayClasses();
+          this.emit('dateFocused', { date: selected, mode: this.mode });
+          return;
         } else {
-          this.selectedDates.splice(idx, 1);
-          this.emit('dateDeselected', { date: selected, mode: this.mode });
+          this._removeSelectedDate(selected);
+          return;
         }
 
         this._forceTimePluginRender = true;

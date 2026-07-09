@@ -27,6 +27,7 @@ export const localeFR: CalendarLocale = {
     arrival: 'Arrivée',
     departure: 'Départ',
     time: 'Heure',
+    remove: 'Retirer',
   },
 };
 
@@ -53,6 +54,7 @@ export const localeEN: CalendarLocale = {
     arrival: 'Arrival',
     departure: 'Departure',
     time: 'Time',
+    remove: 'Remove',
   },
 };
 

@@ -375,10 +375,59 @@
   background: var(--mc-border);
 }
 
-.mc-remove-date:hover {
+.mc-remove-date {
+  display: inline-flex;
+  align-items: center;
+}
+
+.mc-remove-date:hover,
+.mc-remove-date:focus-visible {
   background: var(--mc-danger-light);
   color: var(--mc-danger);
   border-color: var(--mc-danger);
+}
+
+/* The cross only takes up space once the chip is hovered/focused, so the resting
+   layout stays identical to a plain label. */
+.mc-remove-date-x {
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+  width: 0;
+  margin-left: 0;
+  opacity: 0;
+  transition: width var(--mc-transition), margin-left var(--mc-transition), opacity var(--mc-transition);
+}
+
+/* `display: block` removes the inline baseline gap; `em` ties the icon to the chip's
+   font-size. Being geometry rather than a glyph, it self-centres — no optical nudge. */
+.mc-remove-date-x svg {
+  display: block;
+  flex: 0 0 auto;
+  width: 0.875em;
+  height: 0.875em;
+}
+
+.mc-remove-date:hover .mc-remove-date-x,
+.mc-remove-date:focus-visible .mc-remove-date-x {
+  width: 0.875em;
+  margin-left: 0.25rem;
+  opacity: 1;
+}
+
+/* Touch devices never hover: show the affordance permanently. */
+@media (hover: none) {
+  .mc-remove-date-x {
+    width: 0.875em;
+    margin-left: 0.25rem;
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mc-remove-date-x {
+    transition: none;
+  }
 }
 
 /* Months wrapper (used by months plugin) */

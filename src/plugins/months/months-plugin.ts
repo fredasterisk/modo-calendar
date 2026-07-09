@@ -3,7 +3,7 @@
 
 import pluginStyles from './styles.css?raw';
 import type { CalendarPlugin, CalendarInstance } from '../../core/types';
-import { getMonthName, formatDateDisplay } from '../../core/i18n';
+import { getMonthName } from '../../core/i18n';
 import { staggerFadeIn } from '../../core/animations';
 
 function injectCSS(root: ShadowRoot | HTMLElement | null): void {
@@ -254,28 +254,17 @@ function _renderMonthsMultiList(calendar: CalendarInstance): void {
   }
 
   if (filteredDates.length > 0) {
+    const activeDate = calendar._timePluginState?._lastDateClicked || null;
     filteredDates.sort((a, b) => a.getTime() - b.getTime()).forEach((date) => {
       const btn = document.createElement('button');
       btn.type = 'button';
       btn.className = 'mc-btn mc-remove-date';
-      const dtKey = new Date(date);
-      dtKey.setUTCHours(0, 0, 0, 0);
-      btn.dataset.key = String(dtKey.getTime());
-      let label = formatDateDisplay(date, calendar.locale);
-      if (calendar._timePluginState) {
-        const time = calendar._timePluginState.selectedTimes[dtKey.getTime()];
-        if (time) label += ` · ${time}`;
+      btn.dataset.key = String(calendar._dateKey(date));
+      if (activeDate && calendar._dateKey(activeDate) === calendar._dateKey(date)) {
+        btn.classList.add('mc-remove-date--active');
       }
-      btn.textContent = label;
-      btn.setAttribute('aria-label', `Remove ${label}`);
-      btn.onclick = () => {
-        const idx = calendar.selectedDates.findIndex((d) => d.getTime() === date.getTime());
-        if (idx > -1) calendar.selectedDates.splice(idx, 1);
-        calendar.updateButtonLabel();
-        calendar.renderCalendar();
-        calendar.updateDayClasses();
-        calendar.updateHiddenInput();
-      };
+      calendar._setChipLabel(btn, calendar._multiChipLabel(date));
+      btn.onclick = () => calendar._removeSelectedDate(date);
       multiList!.appendChild(btn);
     });
 

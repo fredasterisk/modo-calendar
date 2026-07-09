@@ -28,6 +28,7 @@ export interface CalendarLocale {
     arrival: string;
     departure: string;
     time: string;
+    remove: string;
   };
 }
 
@@ -131,6 +132,8 @@ export interface DayElement {
 export type CalendarEventMap = {
   'dateSelected': { date: Date; mode: CalendarMode };
   'dateDeselected': { date: Date; mode: CalendarMode };
+  /** multiSlot only — an already-selected date became the one the time panel edits. */
+  'dateFocused': { date: Date; mode: CalendarMode };
   'rangeSelected': { start: Date; end: Date };
   'rangeCleared': void;
   'timeSelected': { date: Date; time: string; from?: number; to?: number };
@@ -167,6 +170,7 @@ export interface HiddenInputValueMultiple {
   dates: number[];
   times?: Record<number, string | null>;
   timePairs?: Record<number, { arrival: string | null; departure: string | null }>;
+  slots?: Record<number, string[]>;
 }
 
 export type HiddenInputValue =
@@ -218,6 +222,15 @@ export interface CalendarInstance {
   getDateRangeArray(start: Date, end: Date): Date[];
   triggerInvalidRangeFeedback(): void;
   destroy(): void;
+
+  /** UTC-midnight epoch key for a date — the key shape used by the time plugin's per-date maps. */
+  _dateKey(date: Date): number;
+  /** Chip label for a date in the multi-date list: date + its time slot(s), if any. */
+  _multiChipLabel(date: Date): string;
+  /** Write a chip's label, creating its text span + hover "×" affordance on first call. */
+  _setChipLabel(chip: HTMLElement, label: string): void;
+  /** Drop a date from the multiple-mode selection, discarding its time state. */
+  _removeSelectedDate(date: Date): void;
 
   // Status message API
   setStatusMessage(state: StatusMessageState): void;
